@@ -1,7 +1,7 @@
 {
   "id": "radar_telemetry",
   "name": "Radar & Telemetry HUD",
-  "author": "B04",
+  "author": "0k0k4",
   "version": "2.1.0",
   "description": "Real-time radar tracking plugin depending on sw_core_lib",
   "main": "radar_telemetry.dll",

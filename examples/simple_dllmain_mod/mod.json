@@ -1,7 +1,7 @@
 {
   "id": "simple_dllmain_mod",
   "name": "Simple DllMain Plugin",
-  "author": "B04",
+  "author": "0k0k4",
   "version": "1.0.2",
   "description": "Standard Win32 DLL mod using only DllMain (no SDK exports required)",
   "main": "simple_dllmain_mod.dll",

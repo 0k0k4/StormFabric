@@ -2,7 +2,7 @@
   "id": "native_api_demo",
   "name": "Native Engine API Demo",
   "version": "1.0.0",
-  "author": "B04",
+  "author": "0k0k4",
   "description": "Custom Lua library using only the stable loader API: sw_demo.sum and sw_demo.clamp",
   "main": "native_api_demo.dll",
   "enabled_by_default": false,

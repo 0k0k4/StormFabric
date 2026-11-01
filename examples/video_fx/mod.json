@@ -2,7 +2,7 @@
   "id": "video_fx",
   "name": "Native Video FX (experimental)",
   "version": "0.1.0",
-  "author": "B04",
+  "author": "0k0k4",
   "description": "Lua video offset, scale, tint, grayscale/invert and asynchronous source pixels, using the loader API only.",
   "main": "video_fx.dll",
   "enabled_by_default": true,
