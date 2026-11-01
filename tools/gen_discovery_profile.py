@@ -24,15 +24,6 @@ def byte_literal(hex_string):
     return "\n".join('"' + ''.join(f'\\x{b:02x}' for b in data[i:i+128]) + '"' for i in range(0, len(data), 128))
 
 data = json.loads((ROOT / "tools/discovery_contracts.json").read_text())
-data = merge_contracts(data, json.loads((ROOT / "tools/custom_display_runtime_contracts.json").read_text()))
-data = merge_contracts(data, json.loads((ROOT / "tools/custom_display_dialog_widget_contracts.json").read_text()))
-data = merge_contracts(data, json.loads((ROOT / "tools/custom_display_vehicle_observer_contracts.json").read_text()))
-data = merge_contracts(data, json.loads((ROOT / "tools/custom_display_vehicle_activity_contracts.json").read_text()))
-data = merge_contracts(data, json.loads((ROOT / "tools/custom_display_dialog_construction_contracts.json").read_text()))
-data = merge_contracts(data, json.loads((ROOT / "tools/custom_display_catalogue_contracts.json").read_text()))
-data = merge_contracts(data, json.loads((ROOT / "tools/custom_display_dialog_callback_contracts.json").read_text()))
-data = merge_contracts(data, json.loads((ROOT / "tools/custom_display_dialog_input_contracts.json").read_text()))
-data = merge_contracts(data, json.loads((ROOT / "tools/custom_display_native_input_state_contracts.json").read_text()))
 assert data["reference_sha256"] == "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3"
 entries = data["entries"] + data["witnesses"]
 typed = json.loads((ROOT / "tools/discovery_data_witnesses.json").read_text())
