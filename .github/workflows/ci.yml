@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Build StormFabric loader and CustomDisplay mod
+      - name: Build StormFabric loader
         run: .\build.bat
         shell: cmd
 
@@ -35,3 +35,19 @@ jobs:
       - name: Run offline test suite
         run: .\tests\run_tests.bat
         shell: cmd
+
+      - name: Package Release Artifacts
+        run: |
+          mkdir release_pkg
+          copy build\iphlpapi.dll release_pkg\
+          mkdir release_pkg\mods\mc_lua_qol
+          copy build\examples\mc_lua_qol\mc_lua_qol.dll release_pkg\mods\mc_lua_qol\
+          copy build\examples\mc_lua_qol\mod.json release_pkg\mods\mc_lua_qol\
+          powershell Compress-Archive -Path release_pkg\* -DestinationPath StormFabric-v0.1.0-alpha.zip
+        shell: cmd
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: StormFabric-v0.1.0-alpha
+          path: StormFabric-v0.1.0-alpha.zip

@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v0.1.0-alpha)'
+        required: true
+        default: 'v0.1.0-alpha'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build StormFabric loader
+        run: .\build.bat
+        shell: cmd
+
+      - name: Build example mods
+        run: .\examples\build_examples.bat
+        shell: cmd
+
+      - name: Run offline test suite
+        run: .\tests\run_tests.bat
+        shell: cmd
+
+      - name: Package Release
+        run: |
+          mkdir release_pkg
+          copy build\iphlpapi.dll release_pkg\
+          mkdir release_pkg\mods\mc_lua_qol
+          copy build\examples\mc_lua_qol\mc_lua_qol.dll release_pkg\mods\mc_lua_qol\
+          copy build\examples\mc_lua_qol\mod.json release_pkg\mods\mc_lua_qol\
+          powershell Compress-Archive -Path release_pkg\* -DestinationPath StormFabric-v0.1.0-alpha.zip
+        shell: cmd
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: StormFabric ${{ github.event.inputs.tag_name || github.ref_name }}
+          files: StormFabric-v0.1.0-alpha.zip
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: true
