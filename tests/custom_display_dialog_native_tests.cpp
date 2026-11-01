@@ -15,6 +15,16 @@
 #include <vector>
 #include <thread>
 
+namespace swml {
+void GetLastDialogValues(int& w, int& h, int& px, int& py) {
+    w = 1;
+    h = 1;
+    px = 32;
+    py = 32;
+}
+void SetLastDialogValues(int, int, int, int) {}
+}
+
 using namespace swml;
 namespace {
 struct Object {

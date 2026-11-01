@@ -61,6 +61,9 @@ void LogInfo(const char* format, ...) {
 }
 void LogError(const char*, ...) {}
 void LogDiscoveryProgress(const char*, size_t, size_t, const char*, bool) {}
+void GetLastDialogValues(int& w, int& h, int& px, int& py) { w = 1; h = 1; px = 32; py = 32; }
+void SetLastDialogValues(int, int, int, int) {}
+std::vector<std::pair<std::string, std::pair<int, int>>> GetAllRegisteredDisplays() { return {}; }
 }
 
 int main() {
