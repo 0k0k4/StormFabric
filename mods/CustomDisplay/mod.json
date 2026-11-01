@@ -1,0 +1,9 @@
+{
+  "id": "custom_display",
+  "name": "Custom Display",
+  "version": "1.0.0",
+  "author": "StormworksModLoader",
+  "description": "Customizable screen resolutions and physical sizes",
+  "main": "custom_display.dll",
+  "enabled_by_default": true
+}

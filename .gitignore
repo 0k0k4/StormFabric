@@ -1,0 +1,78 @@
+# ==========================================
+# StormFabric .gitignore
+# ==========================================
+
+# --- Dossiers et artefacts de compilation (MSVC / C++) ---
+build/
+bin/
+out/
+target/
+x64/
+x86/
+[Dd]ebug/
+[Rr]elease/
+
+*.obj
+*.exp
+*.lib
+*.ilk
+*.pdb
+*.idb
+*.pch
+*.tlog
+*.res
+*.manifest
+*.dll
+*.exe
+
+# --- Ghidra dumps et traces brutes de décompilation ---
+tools/ghidra/*.txt
+tools/ghidra/*.asm.txt
+!tools/ghidra/README.txt
+
+# --- Fichiers d'éditeurs et IDEs ---
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosv
+*.sln.docstates
+UpgradeLog*.XML
+
+# VS Code
+.vscode/
+
+# JetBrains / CLion
+.idea/
+cmake-build-*/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# --- Journaux, dumps de crash et config locale ---
+*.log
+*.dmp
+_modloader.ini
+resolutions.txt
+crash.dmp
+
+# --- Fichiers temporaires et scratch ---
+scratch/
+*.tmp
+*.temp
+*.swp
+*~
+*.bak
+
+# --- Système d'exploitation ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store

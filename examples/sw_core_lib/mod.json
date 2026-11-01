@@ -1,0 +1,10 @@
+{
+  "id": "sw_core_lib",
+  "name": "Stormworks Core Library",
+  "author": "B04",
+  "version": "1.0.0",
+  "description": "Shared C++ utilities & native math dependency for Stormworks mods",
+  "main": "sw_core_lib.dll",
+  "native_deps": ["math_dep.dll"],
+  "dependencies": []
+}

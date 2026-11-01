@@ -1,0 +1,9 @@
+{
+  "reference_sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3",
+  "functions": [
+    {"rva": 622224, "name": "lua_pushlstring", "groups": ["lua"]},
+    {"rva": 622896, "name": "lua_getfield_tvalue", "groups": ["lua"]},
+    {"rva": 665328, "name": "luaD_rawrunprotected", "groups": ["lua"]}
+  ],
+  "tables": [], "windows": []
+}

@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build StormFabric loader and CustomDisplay mod
+        run: .\build.bat
+        shell: cmd
+
+      - name: Build example mods
+        run: .\examples\build_examples.bat
+        shell: cmd
+
+      - name: Run offline test suite
+        run: .\tests\run_tests.bat
+        shell: cmd

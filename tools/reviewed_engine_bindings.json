@@ -1,0 +1,890 @@
+{
+  "reference_sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3",
+  "newer_sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+  "bindings": {
+    "0x8f450": {
+      "rva": "0x8f450",
+      "evidence": "decoded reference from 0x6fbff0"
+    },
+    "0x8fd00": {
+      "rva": "0x8fd00",
+      "evidence": "RTTI-identified native vtable slot"
+    },
+    "0x97920": {
+      "rva": "0x97920",
+      "evidence": "unique complete masked body"
+    },
+    "0x97a10": {
+      "rva": "0x97a10",
+      "evidence": "unique complete masked body"
+    },
+    "0x97e90": {
+      "rva": "0x97e90",
+      "evidence": "unique complete masked body"
+    },
+    "0x98050": {
+      "rva": "0x98050",
+      "evidence": "unique complete masked body"
+    },
+    "0x98130": {
+      "rva": "0x98130",
+      "evidence": "unique complete masked body"
+    },
+    "0x982c0": {
+      "rva": "0x982c0",
+      "evidence": "unique complete masked body"
+    },
+    "0x983d0": {
+      "rva": "0x983d0",
+      "evidence": "unique complete masked body"
+    },
+    "0x99cf0": {
+      "rva": "0x99cf0",
+      "evidence": "decoded reference from 0xabd60"
+    },
+    "0x9af60": {
+      "rva": "0x9af60",
+      "evidence": "decoded reference from 0x1e3ee0"
+    },
+    "0x9d010": {
+      "rva": "0x9d010",
+      "evidence": "decoded reference from 0x2e6050"
+    },
+    "0xa1380": {
+      "rva": "0xa1380",
+      "evidence": "decoded reference from 0x2e6b00"
+    },
+    "0xa19e0": {
+      "rva": "0xa19e0",
+      "evidence": "decoded reference from 0x2e6b00"
+    },
+    "0xa26f0": {
+      "rva": "0xa26f0",
+      "evidence": "unique complete masked body"
+    },
+    "0xa61d0": {
+      "rva": "0xa61d0",
+      "evidence": "decoded reference from 0x98050"
+    },
+    "0xabd60": {
+      "rva": "0xabd60",
+      "evidence": "unique complete masked body"
+    },
+    "0xabfb0": {
+      "rva": "0xabfb0",
+      "evidence": "decoded reference from 0x98050"
+    },
+    "0xadf00": {
+      "rva": "0xadf00",
+      "evidence": "decoded reference from 0xbe4a0"
+    },
+    "0xae0c0": {
+      "rva": "0xae0c0",
+      "evidence": "decoded reference from 0xbe4a0"
+    },
+    "0xae290": {
+      "rva": "0xae290",
+      "evidence": "decoded reference from 0x2e80c0"
+    },
+    "0xb4fd0": {
+      "rva": "0xb4fd0",
+      "evidence": "decoded reference from 0x2e5ad0"
+    },
+    "0xb5590": {
+      "rva": "0xb5590",
+      "evidence": "decoded reference from 0xb5650"
+    },
+    "0xb5650": {
+      "rva": "0xb5650",
+      "evidence": "decoded reference from 0x983d0"
+    },
+    "0xb9d30": {
+      "rva": "0xb9d30",
+      "evidence": "decoded reference from 0x2e6050"
+    },
+    "0xba2e0": {
+      "rva": "0xba2e0",
+      "evidence": "unique complete masked body"
+    },
+    "0xba460": {
+      "rva": "0xba460",
+      "evidence": "decoded reference from 0xabd60"
+    },
+    "0xba830": {
+      "rva": "0xba830",
+      "evidence": "unique complete masked body"
+    },
+    "0xbab20": {
+      "rva": "0xbab20",
+      "evidence": "decoded reference from 0x983d0"
+    },
+    "0xbc130": {
+      "rva": "0xbc130",
+      "evidence": "decoded reference from 0x2e6050"
+    },
+    "0xbe4a0": {
+      "rva": "0xbe4a0",
+      "evidence": "unique complete masked body"
+    },
+    "0xbe720": {
+      "rva": "0xbe720",
+      "evidence": "decoded reference from 0x98130"
+    },
+    "0xbe8a0": {
+      "rva": "0xbe8a0",
+      "evidence": "decoded reference from 0x983d0"
+    },
+    "0x169e80": {
+      "rva": "0x169e80",
+      "evidence": "decoded reference from 0x957478"
+    },
+    "0x174e80": {
+      "rva": "0x174e80",
+      "evidence": "decoded reference from 0x174f60"
+    },
+    "0x174f60": {
+      "rva": "0x174f60",
+      "evidence": "unique complete masked body"
+    },
+    "0x17a2d0": {
+      "rva": "0x17a380",
+      "evidence": "decoded reference from 0x366e90"
+    },
+    "0x17b420": {
+      "rva": "0x17b4d0",
+      "evidence": "decoded reference from 0x2e6b00"
+    },
+    "0x17b510": {
+      "rva": "0x17b5c0",
+      "evidence": "decoded reference from 0x20bfd0"
+    },
+    "0x17b590": {
+      "rva": "0x17b640",
+      "evidence": "decoded reference from 0x2e6b00"
+    },
+    "0x17b5c0": {
+      "rva": "0x17b670",
+      "evidence": "decoded reference from 0x25ed10"
+    },
+    "0x17b8e0": {
+      "rva": "0x17b990",
+      "evidence": "decoded reference from 0x2e6b00"
+    },
+    "0x17ba10": {
+      "rva": "0x17bac0",
+      "evidence": "decoded reference from 0x2e6b00"
+    },
+    "0x17bd40": {
+      "rva": "0x17bdf0",
+      "evidence": "decoded reference from 0x74aa50"
+    },
+    "0x17c130": {
+      "rva": "0x17c1e0",
+      "evidence": "decoded reference from 0x6fbff0"
+    },
+    "0x17c330": {
+      "rva": "0x17c3e0",
+      "evidence": "decoded reference from 0x63fbc0"
+    },
+    "0x17c540": {
+      "rva": "0x17c5f0",
+      "evidence": "decoded reference from 0x2e6b00"
+    },
+    "0x17cb00": {
+      "rva": "0x17cbb0",
+      "evidence": "unique complete masked body"
+    },
+    "0x17d190": {
+      "rva": "0x17d240",
+      "evidence": "decoded reference from 0x2e5ad0"
+    },
+    "0x196100": {
+      "rva": "0x1944c0",
+      "evidence": "decoded reference from 0x5c7020"
+    },
+    "0x196bf0": {
+      "rva": "0x194fb0",
+      "evidence": "decoded reference from 0x74aa50"
+    },
+    "0x1afa20": {
+      "rva": "0x1adde0",
+      "evidence": "decoded reference from 0x688ec0"
+    },
+    "0x1b4390": {
+      "rva": "0x1b2780",
+      "evidence": "decoded reference from 0x20cf60"
+    },
+    "0x1bb390": {
+      "rva": "0x1b9780",
+      "evidence": "decoded reference from 0x2e4620"
+    },
+    "0x1bbd30": {
+      "rva": "0x1ba120",
+      "evidence": "decoded reference from 0x245990"
+    },
+    "0x1bd080": {
+      "rva": "0x1bb470",
+      "evidence": "decoded reference from 0x1dd500"
+    },
+    "0x1cf450": {
+      "rva": "0x1cd840",
+      "evidence": "decoded reference from 0x1dd500"
+    },
+    "0x1dceb0": {
+      "rva": "0x1db2a0",
+      "evidence": "decoded reference from 0x6fbff0"
+    },
+    "0x1dd350": {
+      "rva": "0x1db740",
+      "evidence": "decoded reference from 0x241bc0"
+    },
+    "0x1dd440": {
+      "rva": "0x1db830",
+      "evidence": "unique complete masked body"
+    },
+    "0x1dd500": {
+      "rva": "0x1db8f0",
+      "evidence": "unique complete masked body"
+    },
+    "0x1dd7e0": {
+      "rva": "0x1dbbd0",
+      "evidence": "unique complete masked body"
+    },
+    "0x1ddf80": {
+      "rva": "0x1dc370",
+      "evidence": "decoded reference from 0x1dd500"
+    },
+    "0x1de0e0": {
+      "rva": "0x1dc4d0",
+      "evidence": "decoded reference from 0x241fb0"
+    },
+    "0x1e3c20": {
+      "rva": "0x1e2010",
+      "evidence": "decoded reference from 0x74aa50"
+    },
+    "0x1e3ee0": {
+      "rva": "0x1e22d0",
+      "evidence": "unique complete masked body"
+    },
+    "0x1f54a0": {
+      "rva": "0x1f39c0",
+      "evidence": "decoded reference from 0x20bfd0"
+    },
+    "0x20bfd0": {
+      "rva": "0x20a4f0",
+      "evidence": "unique complete masked body"
+    },
+    "0x20cf60": {
+      "rva": "0x20b480",
+      "evidence": "unique complete masked body"
+    },
+    "0x20da70": {
+      "rva": "0x20bf90",
+      "evidence": "decoded reference from 0x366010"
+    },
+    "0x21c620": {
+      "rva": "0x21af20",
+      "evidence": "decoded reference from 0x5c7020"
+    },
+    "0x241bc0": {
+      "rva": "0x240c30",
+      "evidence": "unique complete masked body"
+    },
+    "0x241fb0": {
+      "rva": "0x241020",
+      "evidence": "RTTI-identified native vtable slot"
+    },
+    "0x2437e0": {
+      "rva": "0x242850",
+      "evidence": "decoded reference from 0x5c7020"
+    },
+    "0x244540": {
+      "rva": "0x2435b0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2447c0": {
+      "rva": "0x243830",
+      "evidence": "decoded reference from 0x63f550"
+    },
+    "0x245990": {
+      "rva": "0x244a00",
+      "evidence": "unique complete masked body"
+    },
+    "0x245de0": {
+      "rva": "0x244e50",
+      "evidence": "unique complete masked body"
+    },
+    "0x245eb0": {
+      "rva": "0x244f20",
+      "evidence": "decoded reference from 0x63fbc0"
+    },
+    "0x246020": {
+      "rva": "0x245090",
+      "evidence": "decoded reference from 0x245de0"
+    },
+    "0x246250": {
+      "rva": "0x2452c0",
+      "evidence": "decoded reference from 0x6fbff0"
+    },
+    "0x247ed0": {
+      "rva": "0x246f40",
+      "evidence": "RTTI-identified native vtable slot"
+    },
+    "0x249200": {
+      "rva": "0x248270",
+      "evidence": "decoded reference from 0x262680"
+    },
+    "0x249590": {
+      "rva": "0x248600",
+      "evidence": "decoded reference from 0x262680"
+    },
+    "0x24a050": {
+      "rva": "0x2490c0",
+      "evidence": "unique complete masked body"
+    },
+    "0x24ac00": {
+      "rva": "0x249c70",
+      "evidence": "unique complete masked body"
+    },
+    "0x24b140": {
+      "rva": "0x24a1b0",
+      "evidence": "decoded reference from 0x63d980"
+    },
+    "0x24b650": {
+      "rva": "0x24a6c0",
+      "evidence": "unique complete masked body"
+    },
+    "0x24ffa0": {
+      "rva": "0x24f010",
+      "evidence": "decoded reference from 0x5c7020"
+    },
+    "0x2500a0": {
+      "rva": "0x24f110",
+      "evidence": "decoded reference from 0x63d980"
+    },
+    "0x250250": {
+      "rva": "0x24f2c0",
+      "evidence": "decoded reference from 0x63fbc0"
+    },
+    "0x259c30": {
+      "rva": "0x258ca0",
+      "evidence": "unique complete masked body"
+    },
+    "0x25a020": {
+      "rva": "0x259090",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x25b870": {
+      "rva": "0x25a8e0",
+      "evidence": "unique complete masked body"
+    },
+    "0x25c0a0": {
+      "rva": "0x25b110",
+      "evidence": "decoded reference from 0x25e730"
+    },
+    "0x25e730": {
+      "rva": "0x25d7a0",
+      "evidence": "unique complete masked body"
+    },
+    "0x25ed10": {
+      "rva": "0x25dd80",
+      "evidence": "unique complete masked body"
+    },
+    "0x260010": {
+      "rva": "0x25f080",
+      "evidence": "decoded reference from 0x63fbc0"
+    },
+    "0x260740": {
+      "rva": "0x25f7b0",
+      "evidence": "decoded reference from 0x25ed10"
+    },
+    "0x260fd0": {
+      "rva": "0x260040",
+      "evidence": "decoded reference from 0x63f550"
+    },
+    "0x262680": {
+      "rva": "0x2616f0",
+      "evidence": "unique complete masked body"
+    },
+    "0x262d50": {
+      "rva": "0x261dc0",
+      "evidence": "decoded reference from 0x262680"
+    },
+    "0x263270": {
+      "rva": "0x2622e0",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x263950": {
+      "rva": "0x2629c0",
+      "evidence": "decoded reference from 0x702d10"
+    },
+    "0x2648a0": {
+      "rva": "0x263910",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x2953f0": {
+      "rva": "0x294520",
+      "evidence": "decoded reference from 0x366e90"
+    },
+    "0x2e3bc0": {
+      "rva": "0x2e2da0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e3c90": {
+      "rva": "0x2e2e70",
+      "evidence": "decoded reference from 0x2e88b0"
+    },
+    "0x2e3eb0": {
+      "rva": "0x2e3090",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e4140": {
+      "rva": "0x2e3320",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e4250": {
+      "rva": "0x2e3430",
+      "evidence": "decoded reference from 0x2e8a80"
+    },
+    "0x2e4460": {
+      "rva": "0x2e3640",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e4620": {
+      "rva": "0x2e3800",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e47a0": {
+      "rva": "0x2e3980",
+      "evidence": "decoded reference from 0x2e8310"
+    },
+    "0x2e4cc0": {
+      "rva": "0x2e3ea0",
+      "evidence": "decoded reference from 0x2e4620"
+    },
+    "0x2e50c0": {
+      "rva": "0x2e42a0",
+      "evidence": "decoded reference from 0x2e3bc0"
+    },
+    "0x2e5780": {
+      "rva": "0x2e4960",
+      "evidence": "decoded reference from 0x74aa50"
+    },
+    "0x2e5ad0": {
+      "rva": "0x2e4cb0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e6050": {
+      "rva": "0x2e5230",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e6b00": {
+      "rva": "0x2e5ce0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e6c30": {
+      "rva": "0x2e5e10",
+      "evidence": "decoded reference from 0x2e6f00"
+    },
+    "0x2e6f00": {
+      "rva": "0x2e60e0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e70c0": {
+      "rva": "0x2e62a0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e7280": {
+      "rva": "0x2e6460",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e7440": {
+      "rva": "0x2e6620",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e7600": {
+      "rva": "0x2e67e0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e77c0": {
+      "rva": "0x2e69a0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e7980": {
+      "rva": "0x2e6b60",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e7b40": {
+      "rva": "0x2e6d20",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e7d00": {
+      "rva": "0x2e6ee0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e7ec0": {
+      "rva": "0x2e70a0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e7f50": {
+      "rva": "0x2e7130",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e7fe0": {
+      "rva": "0x2e71c0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e80c0": {
+      "rva": "0x2e72a0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e8310": {
+      "rva": "0x2e74f0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e86a0": {
+      "rva": "0x2e7880",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e88b0": {
+      "rva": "0x2e7a90",
+      "evidence": "decoded reference from 0x2e6050"
+    },
+    "0x2e8a80": {
+      "rva": "0x2e7c60",
+      "evidence": "decoded reference from 0x2e6050"
+    },
+    "0x2e8c50": {
+      "rva": "0x2e7e30",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e8e50": {
+      "rva": "0x2e8030",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e9120": {
+      "rva": "0x2e8300",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e9320": {
+      "rva": "0x2e8500",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e95e0": {
+      "rva": "0x2e87c0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e98c0": {
+      "rva": "0x2e8aa0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e99f0": {
+      "rva": "0x2e8bd0",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e9b20": {
+      "rva": "0x2e8d00",
+      "evidence": "unique complete masked body"
+    },
+    "0x2e9c30": {
+      "rva": "0x2e8e10",
+      "evidence": "unique complete masked body"
+    },
+    "0x33c290": {
+      "rva": "0x33b510",
+      "evidence": "decoded reference from 0x367c80"
+    },
+    "0x3440d0": {
+      "rva": "0x343370",
+      "evidence": "decoded reference from 0x367c80"
+    },
+    "0x366010": {
+      "rva": "0x3652b0",
+      "evidence": "unique complete masked body"
+    },
+    "0x366e90": {
+      "rva": "0x366130",
+      "evidence": "reviewed field-changing video contract: newer_offline_comparison.json"
+    },
+    "0x367c80": {
+      "rva": "0x366f20",
+      "evidence": "unique complete masked body"
+    },
+    "0x5c7020": {
+      "rva": "0x5c69b0",
+      "evidence": "unique complete masked body"
+    },
+    "0x5c78b0": {
+      "rva": "0x5c7240",
+      "evidence": "unique complete masked body"
+    },
+    "0x5f7d10": {
+      "rva": "0x5f7800",
+      "evidence": "decoded reference from 0x702d10"
+    },
+    "0x5fd940": {
+      "rva": "0x5fd430",
+      "evidence": "decoded reference from 0x702d10"
+    },
+    "0x600020": {
+      "rva": "0x5ffb10",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x60a540": {
+      "rva": "0x60a270",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x610a30": {
+      "rva": "0x610920",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x627240": {
+      "rva": "0x627130",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x62a210": {
+      "rva": "0x62a100",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x62f2f0": {
+      "rva": "0x62f1e0",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x633330": {
+      "rva": "0x633220",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x63d980": {
+      "rva": "0x63d870",
+      "evidence": "unique complete masked body"
+    },
+    "0x63f300": {
+      "rva": "0x63f1f0",
+      "evidence": "unique complete masked body"
+    },
+    "0x63f420": {
+      "rva": "0x63f310",
+      "evidence": "unique complete masked body"
+    },
+    "0x63f550": {
+      "rva": "0x63f440",
+      "evidence": "unique complete masked body"
+    },
+    "0x63fbc0": {
+      "rva": "0x63fab0",
+      "evidence": "unique complete masked body"
+    },
+    "0x640e80": {
+      "rva": "0x640d70",
+      "evidence": "unique complete masked body"
+    },
+    "0x642000": {
+      "rva": "0x641ef0",
+      "evidence": "unique complete masked body"
+    },
+    "0x642030": {
+      "rva": "0x641f20",
+      "evidence": "decoded reference from 0x640e80"
+    },
+    "0x643380": {
+      "rva": "0x643270",
+      "evidence": "unique complete masked body"
+    },
+    "0x688ec0": {
+      "rva": "0x689620",
+      "evidence": "unique complete masked body"
+    },
+    "0x6d87d0": {
+      "rva": "0x6d9041",
+      "evidence": "reviewed field-changing video contract: newer_offline_comparison.json"
+    },
+    "0x6fa4a0": {
+      "rva": "0x6fad50",
+      "evidence": "decoded reference from 0x702d10"
+    },
+    "0x6fbff0": {
+      "rva": "0x6fc8a0",
+      "evidence": "unique complete masked body"
+    },
+    "0x6fd420": {
+      "rva": "0x6fdcd0",
+      "evidence": "unique complete masked body"
+    },
+    "0x6ff180": {
+      "rva": "0x6ffa30",
+      "evidence": "decoded reference from 0x702d10"
+    },
+    "0x702b80": {
+      "rva": "0x703430",
+      "evidence": "unique complete masked body"
+    },
+    "0x702d10": {
+      "rva": "0x7035c0",
+      "evidence": "unique complete masked body"
+    },
+    "0x74a538": {
+      "rva": "0x74adf8",
+      "evidence": "unique complete masked body"
+    },
+    "0x74aa50": {
+      "rva": "0x74b310",
+      "evidence": "reviewed field-changing video contract: newer_offline_comparison.json"
+    },
+    "0x74ba00": {
+      "rva": "0x74c2c0",
+      "evidence": "decoded reference from 0x74aa50"
+    },
+    "0x8c9e00": {
+      "rva": "0x8cadf0",
+      "evidence": "decoded reference from 0x2e3bc0"
+    },
+    "0x8ca480": {
+      "rva": "0x8cb400",
+      "evidence": "decoded reference from 0x366e90"
+    },
+    "0x8cfcb0": {
+      "rva": "0x8d0cf0",
+      "evidence": "decoded reference from 0x74aa50"
+    },
+    "0x8d6570": {
+      "rva": "0x8d7440",
+      "evidence": "decoded reference from 0x643380"
+    },
+    "0x8dd150": {
+      "rva": "0x8de0b0",
+      "evidence": "decoded reference from 0x1dd7e0"
+    },
+    "0x8ef660": {
+      "rva": "0x8f06c0",
+      "evidence": "decoded reference from 0x63f550"
+    },
+    "0x8f5680": {
+      "rva": "0x8f6cd0",
+      "evidence": "unique complete masked body"
+    },
+    "0x8f5780": {
+      "rva": "0x8f6dd0",
+      "evidence": "decoded reference from 0x63f420"
+    },
+    "0x9253e0": {
+      "rva": "0x926b90",
+      "evidence": "unique complete masked body"
+    },
+    "0x9452d0": {
+      "rva": "0x946a80",
+      "evidence": "decoded reference from 0x6fbff0"
+    },
+    "0x956db0": {
+      "rva": "0x958560",
+      "evidence": "decoded reference from 0x1dd500"
+    },
+    "0x95706c": {
+      "rva": "0x95881c",
+      "evidence": "decoded reference from 0x241fb0"
+    },
+    "0x9571c8": {
+      "rva": "0x958978",
+      "evidence": "decoded reference from 0x174f60"
+    },
+    "0x957228": {
+      "rva": "0x9589d8",
+      "evidence": "decoded reference from 0x174f60"
+    },
+    "0x957478": {
+      "rva": "0x958c28",
+      "evidence": "unique complete masked body"
+    },
+    "0x957c44": {
+      "rva": "0x9593f4",
+      "evidence": "decoded reference from 0x957478"
+    },
+    "0x99bc00": {
+      "rva": "0x99d3b0",
+      "evidence": "decoded reference from 0x20bfd0"
+    },
+    "0x99c330": {
+      "rva": "0x99dae0",
+      "evidence": "decoded reference from 0x245de0"
+    },
+    "0x9a5384": {
+      "rva": "0x9a6b34",
+      "evidence": "decoded reference from 0x9b15a0"
+    },
+    "0x9b1598": {
+      "rva": "0x9b2d48",
+      "evidence": "decoded reference from 0x957478"
+    },
+    "0x9b15a0": {
+      "rva": "0x9b2d50",
+      "evidence": "unique complete masked body"
+    },
+    "0x9b15bc": {
+      "rva": "0x9b2d6c",
+      "evidence": "decoded reference from 0x17cb00"
+    },
+    "0x9b163c": {
+      "rva": "0x9b2dec",
+      "evidence": "decoded reference from 0x17cb00"
+    },
+    "0x9b37c8": {
+      "rva": "0x9b4f78",
+      "evidence": "decoded reference from 0x957478"
+    },
+    "0x9d2dd0": {
+      "rva": "0x9d4600",
+      "evidence": "decoded reference from 0x366e90"
+    },
+    "0x9d3fa8": {
+      "rva": "0x9d57d8",
+      "evidence": "decoded reference from 0x2e80c0"
+    },
+    "0x9d4e80": {
+      "rva": "0x9d66b0",
+      "evidence": "decoded reference from 0x366e90"
+    },
+    "0x9d77d0": {
+      "rva": "0x9d9000",
+      "evidence": "decoded reference from 0xa26f0"
+    },
+    "0xa925f0": {
+      "rva": "0xa935f8",
+      "evidence": "subsystem review newer_video_bindings.json"
+    },
+    "0xae9a20": {
+      "rva": "0xaec930",
+      "evidence": "exact RTTI class and all required method bodies"
+    },
+    "0xb423c0": {
+      "rva": "0xb45078",
+      "evidence": "exact RTTI class and all required method bodies"
+    },
+    "0xb67728": {
+      "rva": "0xb69728",
+      "evidence": "exact RTTI class and all required method bodies"
+    },
+    "0xb6dac0": {
+      "rva": "0xb6f468",
+      "evidence": "exact RTTI class and all required method bodies"
+    },
+    "0xb70ea0": {
+      "rva": "0xb73178",
+      "evidence": "exact RTTI class and all required method bodies"
+    },
+    "0xb71d60": {
+      "rva": "0xb73ba8",
+      "evidence": "exact RTTI class and all required method bodies"
+    },
+    "0xb850a8": {
+      "rva": "0xb874d0",
+      "evidence": "exact RTTI class and all required method bodies"
+    },
+    "0xb88818": {
+      "rva": "0xb8c140",
+      "evidence": "exact RTTI class and all required method bodies"
+    },
+    "0xb904d8": {
+      "rva": "0xb92e28",
+      "evidence": "exact RTTI class and all required method bodies"
+    }
+  }
+}

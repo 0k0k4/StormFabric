@@ -1,0 +1,9 @@
+{
+  "id": "mc_lua_qol",
+  "name": "Microcontroller Lua QoL & Unlocker",
+  "author": "B04",
+  "version": "1.0.0",
+  "description": "Unlocks 128KB script limit & CPU timeout + adds 25+ QoL functions (input, output, screen, math, PID, debug)",
+  "main": "mc_lua_qol.dll",
+  "dependencies": []
+}

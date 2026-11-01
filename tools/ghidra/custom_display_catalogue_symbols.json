@@ -1,0 +1,11 @@
+{
+  "reference_sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3",
+  "functions": [
+    {"rva": 6361168, "name": "cd_catalogue_selected_entry", "groups": ["custom_display_catalogue_route"]},
+    {"rva": 8365984, "name": "cd_vehicle_state_actions", "groups": ["custom_display_catalogue_route"]}
+  ],
+  "tables": [
+    {"rva": 11814968, "group": "custom_display_catalogue_route", "slots": [20]}
+  ],
+  "windows": []
+}

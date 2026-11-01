@@ -1,0 +1,20 @@
+{
+  "reference_sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3",
+  "functions": [
+    {"rva": 8325584, "name": "cd_vehicle_character_route", "groups": ["custom_display_dialog_input"]},
+    {"rva": 8325872, "name": "cd_vehicle_raw_key_route", "groups": ["custom_display_dialog_input"]},
+    {"rva": 8353040, "name": "cd_vehicle_bound_command_route", "groups": ["custom_display_dialog_input"]},
+    {"rva": 8336448, "name": "cd_vehicle_mouse_route", "groups": ["custom_display_dialog_input"]},
+    {"rva": 8331568, "name": "cd_vehicle_pointer_route", "groups": ["custom_display_dialog_input"]},
+    {"rva": 1977664, "name": "cd_root_mouse_route", "groups": ["custom_display_dialog_input"]},
+    {"rva": 1978752, "name": "cd_root_pointer_route", "groups": ["custom_display_dialog_input"]},
+    {"rva": 2204160, "name": "cd_control_bindings_getter", "groups": ["custom_display_dialog_input"]},
+    {"rva": 1963808, "name": "cd_text_keyboard_submit", "groups": ["custom_display_dialog_input"]}
+  ],
+  "tables": [
+    {"rva": 11580872, "group": "custom_display_dialog_input", "slots": [21]},
+    {"rva": 11558720, "group": "custom_display_dialog_input", "slots": [19, 20]},
+    {"rva": 11814968, "group": "custom_display_dialog_input", "slots": [8, 9, 11, 12, 15]}
+  ],
+  "windows": []
+}

@@ -1,0 +1,90 @@
+{
+  "evidence_kind": "Offline Python PE byte parsing and retained Ghidra contracts; no REA evidence, process attachment, target execution, or runtime observation",
+  "sources": {
+    "reference": {
+      "path": "<StormworksReferencePath>\\stormworks64.exe",
+      "sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3"
+    },
+    "newer": {
+      "path": "<StormworksNewerPath>\\stormworks64.exe",
+      "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699"
+    },
+    "contracts": {
+      "path": "StormFabric/tools/discovery_contracts.json",
+      "sha256": "40b934d71d6774ac00c752f3eae9965c1a28f9429111581ded746f9eddea97a2",
+      "all_contract_bytes_verified_against_reference_file": true
+    },
+    "reproduce": "python -B StormFabric/tools/compare_newer_offline.py"
+  },
+  "video": [
+    {
+      "key": "0x74aa50",
+      "candidate": "0x74b310",
+      "basis": "Recorded monitor call-window contract matches all 100 fixed bytes at start 0x74ad95; E8 at 0x74adf8 decodes to candidate, also a .pdata begin",
+      "reference_and_new_size": 4006,
+      "fixed_bytes": 3418,
+      "fixed_mismatches": 1,
+      "changes": [{"offset": "0x6f", "old": "50", "new": "68", "instruction": "4c 8d b2 50 0e 00 00 -> 4c 8d b2 68 0e 00 00", "meaning": "LEA R14,[RDX+0xe50] -> [RDX+0xe68]"}],
+      "classification": "Actual object-field displacement change, not movement-only; full masked-body miss is expected"
+    },
+    {
+      "key": "0x6d87d0",
+      "candidate_call": "0x6d9041",
+      "candidate_window_start": "0x6d8ffe",
+      "basis": "Only E8 byte-scan candidate in executable file sections targeting independently matching native GPU body at 0x689620; 67/68 fixed window bytes match",
+      "window_size": 72,
+      "containing_pdata": ["0x6d3bac", "0x6da52e"],
+      "changes": [{"offset": "0x7", "old": "30", "new": "98", "instruction": "49 8d 95 30 28 00 00 -> 49 8d 95 98 28 00 00", "meaning": "LEA RDX,[R13+0x2830] -> [R13+0x2898]"}],
+      "classification": "Actual object-field displacement change, not movement-only; full masked-window miss is expected",
+      "native_gpu_body": {"old": "0x688ec0", "new": "0x689620", "size": 592, "fixed_bytes": 500, "fixed_mismatches": 0}
+    },
+    {
+      "key": "0x366e90",
+      "candidate": "0x366130",
+      "basis": "Long fixed-run hits in same .pdata partition sequence; full 2793-byte aligned comparison has only four fixed-byte mismatches",
+      "reference_and_new_body_span_size": 2793,
+      "fixed_bytes": 2693,
+      "fixed_mismatches": 4,
+      "changes": [
+        {"offset": "0x28d", "old": "6c24", "new": "2c29", "meaning": "SUBSS XMM0,[RAX+0x246c] -> [RAX+0x292c]"},
+        {"offset": "0x995", "old": "6824", "new": "2829", "meaning": "MOVSS XMM3,[RAX+0x2468] -> [RAX+0x2928]"}
+      ],
+      "reference_and_new_pdata_partition_sizes": [151, 1958, 194, 20, 20, 19, 18, 20, 289, 104],
+      "classification": "Two actual object-field displacement changes of +0x4c0, not movement-only; full masked-body miss is expected",
+      "limitation": "No direct E8 caller to candidate found in executable byte scan; .pdata region alone is not a full function boundary. Candidate identity is strongly supported by entire-body similarity and identical ten-region partitioning, not runtime execution."
+    }
+  ],
+  "ui": {
+    "bodies": [
+      {"name": "kViewInit", "old": "0x6fbff0", "new": "0x6fc8a0", "size": 3415, "fixed_bytes": 2975, "fixed_mismatches": 0, "checked_direct_contract_edges": 68, "matching_direct_contract_edges": 57, "mismatching_edges_to_shared_witness": 11, "first_mismatching_edge_displacement_offset": "0xd7"},
+      {"name": "kText", "old": "0x245990", "new": "0x244a00", "size": 350, "fixed_bytes": 318, "fixed_mismatches": 0, "checked_direct_contract_edges": 4, "matching_direct_contract_edges": 3, "mismatching_edges_to_shared_witness": 1, "first_mismatching_edge_displacement_offset": "0xec"}
+    ],
+    "shared_witness": {
+      "name": "callee_99bc00",
+      "old": "0x99bc00",
+      "new": "0x99d3b0",
+      "reference_and_new_pdata_size": 1653,
+      "fixed_bytes": 1629,
+      "fixed_mismatches": 4,
+      "byte_changes": [{"offset": "0x25", "old": "80", "new": "a0"}, {"offset": "0x26c", "old": "80", "new": "a0"}, {"offset": "0x39c", "old": "80", "new": "a0"}, {"offset": "0x510", "old": "80", "new": "a0"}],
+      "meaning": "Four indexed image-base-relative jump-table displacements increase by 0x2000, not object-field offsets. R10 is loaded with image base by RIP-relative LEA; dispatch loads 32-bit table entry and adds R10 before indirect JMP.",
+      "jump_tables": [
+        {"old": "0xd68050", "new": "0xd6a050", "checked_entries": 16, "all_target_offsets_relative_to_witness_preserved": true},
+        {"old": "0xd68090", "new": "0xd6a090", "checked_entries": 9, "all_target_offsets_relative_to_witness_preserved": true},
+        {"old": "0xd680b4", "new": "0xd6a0b4", "checked_entries": 9, "all_target_offsets_relative_to_witness_preserved": true},
+        {"old": "0xd680d8", "new": "0xd6a0d8", "checked_entries": 9, "all_target_offsets_relative_to_witness_preserved": true}
+      ],
+      "classification": "Movement-only at examined witness body and four dispatch tables (43 entries). Contract leaves image-base-relative indexed operands fixed. It correctly rejects according to current contract; this is not evidence of scanner or rel32 resolver malfunction.",
+      "generator_source": "StormFabric/tools/ghidra/Discovery.java:34-56 only masks uniquely identified rel32 operands; non-flow references without [0x syntax are skipped at line 44",
+      "resolver_source": "StormFabric/src/engine_discovery.cpp:60-99 validates decoded direct callees by full masked witness Match; lines 164-167 implement fixed-mask comparison; lines 309-320 propagate rejection"
+    }
+  },
+  "unknowns_and_gates": [
+    "This bounded static comparison does not certify the newer layout, ABI, hooks, field meanings, or semantic compatibility of complete subsystems.",
+    "UI check covers direct edges with retained contracts; it is not an exhaustive reimplementation of runtime discovery or recursive witness validation.",
+    "E8 search is a byte scan, not a disassembler. Exact surrounding call-window match and decoded target/body corroboration support the GPU candidate.",
+    "Do not mask object-field displacements or merely whitelist the new build. Any future support needs independently reviewed layout evidence.",
+    "Future image-base-relative jump-table support would require typed operand/table/target corroboration rather than dropping fixed bytes or weakening safety gates.",
+    "No engine_discovery code, generated artifacts, tests, logs, documentation, or executable files changed."
+  ]
+}

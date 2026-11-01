@@ -1,0 +1,305 @@
+{
+  "entries": [
+    {
+      "rva": 622224,
+      "start": 622224,
+      "name": "lua_pushlstring",
+      "groups": [
+        "lua"
+      ],
+      "bytes": "48895c2410574883ec204889742430488bf94d85c075744c8d0d704aa400b8b3cf213541f7e1418bc1418bf12bc2d1e803c2c1e8056bc0352bf048c1e6044803711833c98bc166660f1f840000000000488b9cc6e80100003a4b18743648ffc04883f8027cea488b86e80100004533c0498bd1488986f0010000488bcfe87ed60100488986e8010000eb05e870d60100488bd8488b5710488b74243048891a0fb64b0883c940894a08488b4f18488347101048837918007e08488bcfe87fe20000488d4318488b5c24384883c4205fc3",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffff",
+      "refs": [
+        {
+          "offset": 26,
+          "end": 30,
+          "target": 11389214,
+          "flow": false
+        },
+        {
+          "offset": 126,
+          "end": 130,
+          "target": 742800,
+          "flow": true
+        },
+        {
+          "offset": 140,
+          "end": 144,
+          "target": 742800,
+          "flow": true
+        },
+        {
+          "offset": 189,
+          "end": 193,
+          "target": 680400,
+          "flow": true
+        }
+      ]
+    },
+    {
+      "rva": 622896,
+      "start": 622896,
+      "name": "lua_getfield_tvalue",
+      "groups": [
+        "lua"
+      ],
+      "bytes": "48895c24084889742410574883ec30488bfa488bd9498bd0e803d50100837f0845488bf0744d4c8b431033c9498930488bd70fb6460883c84048894c242041894008488bcb4c8b43104d8bc8498d401048894310e897650200488b4310488b5c2440488b7424488b40f883e00f4883c4305fc3488b0f488bd6e8722902004c8b4310488bc88378080074a10f1000410f11004883431010ebc0",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "refs": [
+        {
+          "offset": 25,
+          "end": 29,
+          "target": 742992,
+          "flow": true
+        },
+        {
+          "offset": 85,
+          "end": 89,
+          "target": 780064,
+          "flow": true
+        },
+        {
+          "offset": 122,
+          "end": 126,
+          "target": 764704,
+          "flow": true
+        }
+      ]
+    },
+    {
+      "rva": 665328,
+      "start": 665328,
+      "name": "luaD_rawrunprotected",
+      "groups": [
+        "lua"
+      ],
+      "bytes": "40534881ec70010000488b051009c1004833c448898424600100000fb781c6000000668944242048894c24284889542438488bd44c89442430c784245001000000000000488b41584889442440488d44244048894158488d4c2450e880509300488b5c242885c0750c488b542430488bcbff542438488b442440488943580fb7442420668983c60000008b842450010000488b8c24600100004833cce81f468b004881c4700100005bc3",
+      "mask": "ffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffff",
+      "refs": [
+        {
+          "offset": 12,
+          "end": 16,
+          "target": 13316112,
+          "flow": false
+        },
+        {
+          "offset": 92,
+          "end": 96,
+          "target": 10319824,
+          "flow": true
+        },
+        {
+          "offset": 157,
+          "end": 161,
+          "target": 9792944,
+          "flow": true
+        }
+      ]
+    }
+  ],
+  "tables": [],
+  "witnesses": [
+    {
+      "rva": 742800,
+      "start": 742800,
+      "name": "callee_b5590",
+      "groups": [],
+      "bytes": "48896c242041564883ec20498be84c8bf24983f8287710488b6c24484883c420415ee949feffff48b8e7ffffffffffff7f483be8737e48895c24304d8d481933d2488974243848897c2440488b7918448d42048b5f50e8c569ffff0fb64f544c8bc580e103498bd6488bf0884809c6400814488b4f58488908488d48184889475889580cc6400a00c64428180048896810e8da658e00488b7c2440488bc6488b742438488b5c2430488b6c24484883c420415ec3e84769ffff",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000",
+      "refs": [
+        {
+          "offset": 35,
+          "end": 39,
+          "target": 742400,
+          "flow": true
+        },
+        {
+          "offset": 87,
+          "end": 91,
+          "target": 704432,
+          "flow": true
+        },
+        {
+          "offset": 146,
+          "end": 150,
+          "target": 10075136,
+          "flow": true
+        },
+        {
+          "offset": 181,
+          "end": 185,
+          "target": 704400,
+          "flow": true
+        }
+      ]
+    },
+    {
+      "rva": 680400,
+      "start": 680400,
+      "name": "callee_a61d0",
+      "groups": [],
+      "bytes": "48895c24084889742410574883ec20488b7918488bf1488b4f184885c97f0433dbeb484c6387b800000048b80bd7a3703d0ad7a348f7e949b9ffffffffffffff7f4803d1498bc148c1fa07488bda48ffc248c1eb3f4803da489949f7f8483bd87d06490fafd8eb03498bd9807f5700753f48034f1048c7c240a2ffff48b801000000000000804803c1483bc2480f4fd0482bca4889571848894f10488b5c2430488b7424384883c4205fc30f1f440000488bcee888fcffff482bd84881fba0f6ffff7e06807f550775e6807f55077517488bcf488b5c2430488b7424384883c4205fe979f5ffff48638fb8000000488bc3489948f7f9488b5718480357104869c8c800000048b801000000000000804803c2483bc8480f4dc1488bce482bd04889471848895710488b5c2430488b7424384883c4205fe9e5f2ffff",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000",
+      "refs": [
+        {
+          "offset": 180,
+          "end": 184,
+          "target": 679696,
+          "flow": true
+        },
+        {
+          "offset": 227,
+          "end": 231,
+          "target": 677936,
+          "flow": true
+        },
+        {
+          "offset": 311,
+          "end": 315,
+          "target": 677360,
+          "flow": true
+        }
+      ]
+    },
+    {
+      "rva": 742992,
+      "start": 742992,
+      "name": "callee_b5650",
+      "groups": [],
+      "bytes": "48895c2408574883ec204c8bd2b8b3cf2135f7e2418bda418bc22bc2488bf9d1e803c2c1e8056bc0352bd848c1e304480359184533c966660f1f8400000000004e8b9ccbe8010000498bc24d8d43184d2bc20fb610420fb60c002bd1750748ffc085c975ed85d2744e49ffc14983f9027cce488b83e801000049c7c0ffffffff488983f0010000660f1f84000000000049ffc043803c020075f6498bd2488bcfe89bfeffff488983e8010000488b5c24304883c4205fc3488b5c2430498bc34883c4205fc3",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "refs": [
+        {
+          "offset": 161,
+          "end": 165,
+          "target": 742800,
+          "flow": true
+        }
+      ]
+    },
+    {
+      "rva": 780064,
+      "start": 780064,
+      "name": "callee_be720",
+      "groups": [],
+      "bytes": "48895c240848896c2410488974241857415641574883ec30488b4424704c8d3d0ca6a1004d8bf1498be8488bda488bf133ff4885c0751a4533c0488bd3488bcee80bdbffff837808000f8407010000eb7a488b034c8b40284d85c00f84d4000000450fb6480a41f6c1010f85c5000000488b4618410fb6480b488b90e0000000b801000000d3e0ffc8489848634a0c4823c148c1e00549034018660f1f4400008378184475064839501074144863481c85c9740948c1e1054803c1ebe3498bc78378080074674885c0746a8b50088bca83e10f80f9067435488bd883fa45740433c0eb11488b08488bd5e8d1c3ffff83780800750fffc781ffd00700007d6ae92effffff0f1000410f1106eb30c7442428010000004c8bcd4c8bc34c89742420488bd0488bcee825dcffffeb104180c9014588480a41c7460800000000488b5c2450488b6c2458488b7424604883c430415f415e5fc34c8d056b0ba200488bd3488bcee8c838feffcc488d15600ba200488bcee8383bfeff",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffff00000000ffffffff00000000ffffffff00000000",
+      "refs": [
+        {
+          "offset": 32,
+          "end": 36,
+          "target": 11373904,
+          "flow": false
+        },
+        {
+          "offset": 65,
+          "end": 69,
+          "target": 770672,
+          "flow": true
+        },
+        {
+          "offset": 235,
+          "end": 239,
+          "target": 764896,
+          "flow": true
+        },
+        {
+          "offset": 295,
+          "end": 299,
+          "target": 771184,
+          "flow": true
+        },
+        {
+          "offset": 345,
+          "end": 349,
+          "target": 11400168,
+          "flow": false
+        },
+        {
+          "offset": 356,
+          "end": 360,
+          "target": 663888,
+          "flow": true
+        },
+        {
+          "offset": 364,
+          "end": 368,
+          "target": 11400176,
+          "flow": false
+        },
+        {
+          "offset": 372,
+          "end": 376,
+          "target": 664528,
+          "flow": true
+        }
+      ]
+    },
+    {
+      "rva": 764704,
+      "start": 764704,
+      "name": "callee_bab20",
+      "groups": [],
+      "bytes": "40534883ec300fb642084c8bc13c04753c0fb6490bb801000000d3e0ffc84863d84863420c4823d848c1e30549035818837b184475064839531074774863431c85c0746848c1e0054803d8ebe3488954242083c840488d54242089442428e8ddf3ffff4c8d44242033c9488bd8488d5010e80a45000085c07539660f1f4400004863431c85c0742448c1e0054c8d4424204803d833c9488d5310e8e144000085c074dd488bc34883c4305bc3488d1d7de1a100488bc34883c4305bc3",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffff00000000ffffffffffffffffff",
+      "refs": [
+        {
+          "offset": 95,
+          "end": 99,
+          "target": 761696,
+          "flow": true
+        },
+        {
+          "offset": 114,
+          "end": 118,
+          "target": 782496,
+          "flow": true
+        },
+        {
+          "offset": 155,
+          "end": 159,
+          "target": 782496,
+          "flow": true
+        },
+        {
+          "offset": 175,
+          "end": 179,
+          "target": 11373904,
+          "flow": false
+        }
+      ]
+    },
+    {
+      "rva": 10319824,
+      "start": 10319824,
+      "name": "callee_9d77d0",
+      "groups": [],
+      "bytes": "488911488959084889691848897120488979284c8961304c8969384c8971404c8979484c8d4424084c8941104c8b04244c8941500fae5958d9795c660f7f7160660f7f797066440f7f818000000066440f7f899000000066440f7f91a000000066440f7f99b000000066440f7fa1c000000066440f7fa9d000000066440f7fb1e000000066440f7fb9f000000033c0c3",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "refs": []
+    },
+    {
+      "rva": 9792944,
+      "start": 9792944,
+      "name": "callee_956db0",
+      "groups": [],
+      "bytes": "483b0d59c23500751048c1c11066f7c1ffff7501c348c1c910e936000000",
+      "mask": "ffffff00000000ffffffffffffffffffffffffffffffffffffff00000000",
+      "refs": [
+        {
+          "offset": 3,
+          "end": 7,
+          "target": 13316112,
+          "flow": false
+        },
+        {
+          "offset": 26,
+          "end": 30,
+          "target": 9793028,
+          "flow": true
+        }
+      ]
+    }
+  ],
+  "reference_sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3"
+}

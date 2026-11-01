@@ -1,0 +1,19 @@
+{
+  "reference_sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3",
+  "evidence": "tools/newer_offline_comparison.json: shared witness, four indexed image-base-relative dispatches; preserve every checked local code target",
+  "entries": [
+    {
+      "key": 10075136,
+      "base_operand": 6,
+      "base_end": 10,
+      "base_instruction_offset": 3,
+      "base_instruction_hex": "4c8d15f64366ff",
+      "tables": [
+        {"operand": 36, "rva": 14057552, "count": 16, "instruction_offset": 32, "instruction_hex": "478b8c825080d6004d03ca41ffe1"},
+        {"operand": 619, "rva": 14057616, "count": 9, "instruction_offset": 615, "instruction_hex": "478b9c9a9080d6004d03da41ffe3"},
+        {"operand": 923, "rva": 14057652, "count": 9, "instruction_offset": 919, "instruction_hex": "478b9c9ab480d6004d03da41ffe3"},
+        {"operand": 1295, "rva": 14057688, "count": 9, "instruction_offset": 1291, "instruction_hex": "478b9c9ad880d6004d03da41ffe3"}
+      ]
+    }
+  ]
+}

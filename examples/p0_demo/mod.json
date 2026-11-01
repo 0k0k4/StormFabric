@@ -1,0 +1,10 @@
+{
+  "id": "p0_demo",
+  "name": "P0 native SDK demo",
+  "version": "1.0.0",
+  "author": "StormworksModLoader",
+  "description": "Native HUD, F8 action and owner-scoped P0 SDK. No game addresses.",
+  "main": "p0_demo.dll",
+  "enabled_by_default": false,
+  "dependencies": []
+}

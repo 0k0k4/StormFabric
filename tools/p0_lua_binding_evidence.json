@@ -1,0 +1,144 @@
+{
+  "evidence_kind": "Retained read-only Ghidra full instruction bodies + offline PE byte match; no runtime evidence",
+  "reference_sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3",
+  "newer_sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+  "contract_file": "tools/p0_lua_contracts.json",
+  "contract_file_sha256": "866b14cf7383e88b445e117b86947f22b56ede5826edbc097ec372872f4e5c06",
+  "bindings": [
+    {
+      "key": "0x97e90",
+      "reference_rva": "0x97e90",
+      "new_rva": "0x97e90",
+      "name": "lua_pushlstring",
+      "span_size": 208,
+      "fixed_bytes": 192,
+      "candidate_count": 1,
+      "full_masked_body_match": true,
+      "reference_instruction_sha256": "a0578e6ae2edd4176aeb7a812e5b018d9a902a5bb2dc86cc0545c89213d3bedf",
+      "newer_instruction_sha256": "cf4648ccfe36a946151780dbc437f09d0ae45b3bf0fb8fa618367ea3aa02d4ce",
+      "reference_bytes": "48895c2410574883ec204889742430488bf94d85c075744c8d0d704aa400b8b3cf213541f7e1418bc1418bf12bc2d1e803c2c1e8056bc0352bf048c1e6044803711833c98bc166660f1f840000000000488b9cc6e80100003a4b18743648ffc04883f8027cea488b86e80100004533c0498bd1488986f0010000488bcfe87ed60100488986e8010000eb05e870d60100488bd8488b5710488b74243048891a0fb64b0883c940894a08488b4f18488347101048837918007e08488bcfe87fe20000488d4318488b5c24384883c4205fc3",
+      "newer_bytes": "48895c2410574883ec204889742430488bf94d85c075744c8d0d905aa400b8b3cf213541f7e1418bc1418bf12bc2d1e803c2c1e8056bc0352bf048c1e6044803711833c98bc166660f1f840000000000488b9cc6e80100003a4b18743648ffc04883f8027cea488b86e80100004533c0498bd1488986f0010000488bcfe87ed60100488986e8010000eb05e870d60100488bd8488b5710488b74243048891a0fb64b0883c940894a08488b4f18488347101048837918007e08488bcfe87fe20000488d4318488b5c24384883c4205fc3",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffff",
+      "refs": [
+        {
+          "offset": 26,
+          "end": 30,
+          "target": 11389214,
+          "flow": false
+        },
+        {
+          "offset": 126,
+          "end": 130,
+          "target": 742800,
+          "flow": true
+        },
+        {
+          "offset": 140,
+          "end": 144,
+          "target": 742800,
+          "flow": true
+        },
+        {
+          "offset": 189,
+          "end": 193,
+          "target": 680400,
+          "flow": true
+        }
+      ]
+    },
+    {
+      "key": "0x98130",
+      "reference_rva": "0x98130",
+      "new_rva": "0x98130",
+      "name": "lua_getfield_tvalue",
+      "span_size": 153,
+      "fixed_bytes": 141,
+      "candidate_count": 1,
+      "full_masked_body_match": true,
+      "reference_instruction_sha256": "d7b32511e9f95cdf8867c97b7b88c22eec5902e994658d809dc05f30d8eea250",
+      "newer_instruction_sha256": "d7b32511e9f95cdf8867c97b7b88c22eec5902e994658d809dc05f30d8eea250",
+      "reference_bytes": "48895c24084889742410574883ec30488bfa488bd9498bd0e803d50100837f0845488bf0744d4c8b431033c9498930488bd70fb6460883c84048894c242041894008488bcb4c8b43104d8bc8498d401048894310e897650200488b4310488b5c2440488b7424488b40f883e00f4883c4305fc3488b0f488bd6e8722902004c8b4310488bc88378080074a10f1000410f11004883431010ebc0",
+      "newer_bytes": "48895c24084889742410574883ec30488bfa488bd9498bd0e803d50100837f0845488bf0744d4c8b431033c9498930488bd70fb6460883c84048894c242041894008488bcb4c8b43104d8bc8498d401048894310e897650200488b4310488b5c2440488b7424488b40f883e00f4883c4305fc3488b0f488bd6e8722902004c8b4310488bc88378080074a10f1000410f11004883431010ebc0",
+      "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "refs": [
+        {
+          "offset": 25,
+          "end": 29,
+          "target": 742992,
+          "flow": true
+        },
+        {
+          "offset": 85,
+          "end": 89,
+          "target": 780064,
+          "flow": true
+        },
+        {
+          "offset": 122,
+          "end": 126,
+          "target": 764704,
+          "flow": true
+        }
+      ]
+    },
+    {
+      "key": "0xa26f0",
+      "reference_rva": "0xa26f0",
+      "new_rva": "0xa26f0",
+      "name": "luaD_rawrunprotected",
+      "span_size": 170,
+      "fixed_bytes": 158,
+      "candidate_count": 1,
+      "full_masked_body_match": true,
+      "reference_instruction_sha256": "9d2a34336f61cb5cd68079edd109e52ebb3b7551d3570acb1030a45a890e2be9",
+      "newer_instruction_sha256": "1a91d0ae97d790ef470144d4b2ae80fb52a678739a2dcb697c27956ddd15e840",
+      "reference_bytes": "40534881ec70010000488b051009c1004833c448898424600100000fb781c6000000668944242048894c24284889542438488bd44c89442430c784245001000000000000488b41584889442440488d44244048894158488d4c2450e880509300488b5c242885c0750c488b542430488bcbff542438488b442440488943580fb7442420668983c60000008b842450010000488b8c24600100004833cce81f468b004881c4700100005bc3",
+      "newer_bytes": "40534881ec70010000488b051029c1004833c448898424600100000fb781c6000000668944242048894c24284889542438488bd44c89442430c784245001000000000000488b41584889442440488d44244048894158488d4c2450e8b0689300488b5c242885c0750c488b542430488bcbff542438488b442440488943580fb7442420668983c60000008b842450010000488b8c24600100004833cce8cf5d8b004881c4700100005bc3",
+      "mask": "ffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffff",
+      "refs": [
+        {
+          "offset": 12,
+          "end": 16,
+          "target": 13316112,
+          "flow": false
+        },
+        {
+          "offset": 92,
+          "end": 96,
+          "target": 10319824,
+          "flow": true
+        },
+        {
+          "offset": 157,
+          "end": 161,
+          "target": 9792944,
+          "flow": true
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "No REA provider; direct retained Ghidra export only.",
+    "No game launch, attach, install or runtime proof.",
+    "raiseError is intentionally unsupported; plugin frames are never in the protected native leaf.",
+    "Only microcontroller VMs observed by loader init/destroy hooks; addon VMs unknown."
+  ],
+  "ghidra_evidence": [
+    {
+      "path": "tools/ghidra/p0_lua_api.txt",
+      "sha256": "6fa25552d93baffdee8f092e45812b0aaa628eeb4c994a45ea0e56f70ee98e0a"
+    },
+    {
+      "path": "tools/ghidra/p0_lua_error.txt",
+      "sha256": "7f3835200f4a44a90a3eb3f58a09d81ec8c08ff1a52ef2a734437e0e1caa5cd4"
+    },
+    {
+      "path": "tools/ghidra/p0_lua_final.txt",
+      "sha256": "6155467fa8d30ec57b1768bf9dbb01810278efc6dfe42958290305a310089bf1"
+    },
+    {
+      "path": "tools/ghidra/p0_lua_protect.txt",
+      "sha256": "5aca1bc8a59495fec33f120ed77e10ffae917988777246d114ee102c06ff918f"
+    }
+  ]
+}

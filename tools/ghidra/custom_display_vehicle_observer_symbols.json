@@ -1,0 +1,16 @@
+{
+  "reference_sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3",
+  "functions": [
+    {"rva": 6466688, "name": "cd_vehicle_ui_init", "groups": ["custom_display_vehicle_observer"]},
+    {"rva": 6473008, "name": "cd_vehicle_ui_update", "groups": ["custom_display_vehicle_observer"]},
+    {"rva": 6483232, "name": "cd_vehicle_ui_destroy", "groups": ["custom_display_vehicle_observer"]},
+    {"rva": 2366400, "name": "cd_vehicle_ui_teardown", "groups": ["custom_display_vehicle_observer"]},
+    {"rva": 8189776, "name": "cd_vehicle_state_teardown", "groups": ["custom_display_vehicle_observer"]},
+    {"rva": 8365984, "name": "cd_vehicle_state_actions", "groups": ["custom_display_vehicle_observer"]}
+  ],
+  "tables": [
+    {"rva": 12163392, "group": "custom_display_vehicle_observer", "slots": [0, 1, 2, 3]},
+    {"rva": 11814968, "group": "custom_display_vehicle_observer", "slots": [2, 20]}
+  ],
+  "windows": []
+}

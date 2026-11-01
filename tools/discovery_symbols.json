@@ -1,0 +1,724 @@
+{
+  "reference_sha256": "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3",
+  "functions": [
+    {
+      "rva": 620832,
+      "name": "native_97920",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 621072,
+      "name": "native_97a10",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 622672,
+      "name": "native_98050",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 623296,
+      "name": "native_982c0",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 623568,
+      "name": "native_983d0",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 703840,
+      "name": "native_abd60",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 762592,
+      "name": "native_ba2e0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 763952,
+      "name": "native_ba830",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 779424,
+      "name": "native_be4a0",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 1527648,
+      "name": "native_174f60",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 1559296,
+      "name": "kStrReserve",
+      "groups": [
+        "ui",
+        "lua"
+      ]
+    },
+    {
+      "rva": 1955072,
+      "name": "native_1dd500",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 1955808,
+      "name": "kRemoveChild",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 1982176,
+      "name": "native_1e3ee0",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 2146256,
+      "name": "kLocalized",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 2150240,
+      "name": "native_20cf60",
+      "groups": [
+        "video"
+      ]
+    },
+    {
+      "rva": 2366400,
+      "name": "kUiTeardown",
+      "groups": [
+        "notifications"
+      ]
+    },
+    {
+      "rva": 2367408,
+      "name": "native_241fb0",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 2377024,
+      "name": "kRect",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 2382224,
+      "name": "kText",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 2383328,
+      "name": "kSetText",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 2391760,
+      "name": "kHudDestroy",
+      "groups": [
+        "notifications"
+      ]
+    },
+    {
+      "rva": 2400336,
+      "name": "kRectButton",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 2403328,
+      "name": "kScroll",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 2404672,
+      "name": "native_24b140",
+      "groups": [
+        "editor"
+      ]
+    },
+    {
+      "rva": 2405968,
+      "name": "native_24b650",
+      "groups": [
+        "editor"
+      ]
+    },
+    {
+      "rva": 2464816,
+      "name": "kHeading",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 2472048,
+      "name": "kCheckbox",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 2484016,
+      "name": "native_25e730",
+      "groups": [
+        "editor"
+      ]
+    },
+    {
+      "rva": 2485520,
+      "name": "native_25ed10",
+      "groups": [
+        "editor"
+      ]
+    },
+    {
+      "rva": 2500224,
+      "name": "kButton",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 3029952,
+      "name": "native_2e3bc0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3030704,
+      "name": "native_2e3eb0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3031360,
+      "name": "native_2e4140",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3032160,
+      "name": "native_2e4460",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3032608,
+      "name": "native_2e4620",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3037904,
+      "name": "native_2e5ad0",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 3039312,
+      "name": "native_2e6050",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 3042048,
+      "name": "native_2e6b00",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3043072,
+      "name": "native_2e6f00",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3043520,
+      "name": "native_2e70c0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3043968,
+      "name": "native_2e7280",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3044416,
+      "name": "native_2e7440",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3044864,
+      "name": "native_2e7600",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3045312,
+      "name": "native_2e77c0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3045760,
+      "name": "native_2e7980",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3046208,
+      "name": "native_2e7b40",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3046656,
+      "name": "native_2e7d00",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3047104,
+      "name": "native_2e7ec0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3047248,
+      "name": "native_2e7f50",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3047392,
+      "name": "native_2e7fe0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3047616,
+      "name": "native_2e80c0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3048208,
+      "name": "native_2e8310",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3049120,
+      "name": "native_2e86a0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3049648,
+      "name": "native_2e88b0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3050112,
+      "name": "native_2e8a80",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3050576,
+      "name": "native_2e8c50",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3051088,
+      "name": "native_2e8e50",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3051808,
+      "name": "native_2e9120",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3052320,
+      "name": "native_2e9320",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3053024,
+      "name": "native_2e95e0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3053760,
+      "name": "native_2e98c0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3054064,
+      "name": "native_2e99f0",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3054368,
+      "name": "native_2e9b20",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3054640,
+      "name": "native_2e9c30",
+      "groups": [
+        "qol"
+      ]
+    },
+    {
+      "rva": 3563536,
+      "name": "native_366010",
+      "groups": [
+        "video"
+      ]
+    },
+    {
+      "rva": 3567248,
+      "name": "native_366e90",
+      "groups": [
+        "video"
+      ]
+    },
+    {
+      "rva": 3570816,
+      "name": "native_367c80",
+      "groups": [
+        "video"
+      ]
+    },
+    {
+      "rva": 6058016,
+      "name": "kHudInit",
+      "groups": [
+        "notifications"
+      ]
+    },
+    {
+      "rva": 6060208,
+      "name": "kHudUpdate",
+      "groups": [
+        "notifications"
+      ]
+    },
+    {
+      "rva": 6543744,
+      "name": "native_63d980",
+      "groups": [
+        "editor"
+      ]
+    },
+    {
+      "rva": 6550272,
+      "name": "native_63f300",
+      "groups": [
+        "editor"
+      ]
+    },
+    {
+      "rva": 6550560,
+      "name": "native_63f420",
+      "groups": [
+        "editor"
+      ]
+    },
+    {
+      "rva": 6550864,
+      "name": "native_63f550",
+      "groups": [
+        "editor"
+      ]
+    },
+    {
+      "rva": 6552512,
+      "name": "native_63fbc0",
+      "groups": [
+        "editor"
+      ]
+    },
+    {
+      "rva": 6557312,
+      "name": "kEditorInit",
+      "groups": [
+        "notifications"
+      ]
+    },
+    {
+      "rva": 6561792,
+      "name": "kEditorUpdate",
+      "groups": [
+        "notifications"
+      ]
+    },
+    {
+      "rva": 6566784,
+      "name": "kEditorDestroy",
+      "groups": [
+        "notifications"
+      ]
+    },
+    {
+      "rva": 6852288,
+      "name": "native_688ec0",
+      "groups": [
+        "video"
+      ]
+    },
+    {
+      "rva": 7323632,
+      "name": "kViewInit",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 7328800,
+      "name": "kViewAlpha",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 7351168,
+      "name": "kUiUpdate",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 7351568,
+      "name": "kSetView",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 7645776,
+      "name": "native_74aa50",
+      "groups": [
+        "video"
+      ]
+    },
+    {
+      "rva": 9393792,
+      "name": "kAddChild",
+      "groups": [
+        "ui"
+      ]
+    },
+    {
+      "rva": 9589728,
+      "name": "kScrollAdd",
+      "groups": [
+        "ui",
+        "editor"
+      ]
+    },
+    {
+      "rva": 9794680,
+      "name": "kOpNew",
+      "groups": [
+        "ui",
+        "lua"
+      ]
+    },
+    {
+      "rva": 10163616,
+      "name": "kStrFree",
+      "groups": [
+        "ui",
+        "lua"
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "rva": 12093464,
+      "group": "ui",
+      "slots": [
+        1,
+        30
+      ]
+    },
+    {
+      "rva": 12125400,
+      "group": "ui",
+      "slots": [
+        3
+      ]
+    },
+    {
+      "rva": 12079272,
+      "group": "ui",
+      "slots": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        30
+      ]
+    },
+    {
+      "rva": 11983552,
+      "group": "lua",
+      "slots": [
+        1,
+        3
+      ]
+    },
+    {
+      "rva": 11958056,
+      "group": "editor",
+      "slots": [
+        1,
+        3
+      ]
+    },
+    {
+      "rva": 11442720,
+      "group": "editor",
+      "slots": [
+        1
+      ]
+    },
+    {
+      "rva": 11805632,
+      "group": "notifications",
+      "slots": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "rva": 12000608,
+      "group": "notifications",
+      "slots": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "rva": 11996832,
+      "group": "video",
+      "slots": [
+        0
+      ]
+    }
+  ],
+  "windows": [
+    {
+      "rva": 7644472,
+      "start": 7644373,
+      "length": 104,
+      "name": "monitor_onDraw_call",
+      "groups": [
+        "video"
+      ]
+    },
+    {
+      "rva": 7178192,
+      "start": 7178125,
+      "length": 72,
+      "name": "native_gpu_monitor_call",
+      "groups": [
+        "video"
+      ]
+    }
+  ]
+}
