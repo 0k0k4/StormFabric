@@ -1,9 +1,0 @@
-{
-  "id": "custom_display",
-  "name": "Custom Display",
-  "version": "1.0.0",
-  "author": "0k0k4",
-  "description": "Customizable screen resolutions and physical sizes",
-  "main": "custom_display.dll",
-  "enabled_by_default": true
-}

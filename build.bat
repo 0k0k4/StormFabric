@@ -1,5 +1,5 @@
 @echo off
-rem Builds build\iphlpapi.dll (StormFabric proxy + mod loader UI) and build\mods\CustomDisplay\custom_display.dll.
+rem Builds build\iphlpapi.dll (StormFabric proxy + mod loader UI).
 rem Requires MSVC x64 compiler (cl.exe).
 setlocal
 
@@ -26,10 +26,9 @@ cd /d "%~dp0"
 
 if not exist build mkdir build
 if not exist build\core mkdir build\core
-if not exist build\mods\CustomDisplay mkdir build\mods\CustomDisplay
 
 echo ========================================================
-echo [1/2] Building StormFabric (iphlpapi.dll)
+echo Building StormFabric (iphlpapi.dll)
 echo ========================================================
 cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /GS- /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS ^
    /LD src\dllmain.cpp src\game.cpp src\log.cpp src\engine_discovery.cpp src\engine_bindings.cpp ^
@@ -38,25 +37,6 @@ cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /GS- /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D
        src\mod_runtime.cpp src\mod_native_ui.cpp src\mod_storage.cpp ^
    /Fo:build\core\ /Fe:build\iphlpapi.dll ^
    /link /DLL /MANIFEST:NO /DEBUG:NONE /OPT:REF /OPT:ICF opengl32.lib bcrypt.lib || exit /b 1
-
-echo.
-echo ========================================================
-echo [2/2] Building CustomDisplay mod (custom_display.dll)
-echo ========================================================
-cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /GS- /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS ^
-   /LD src\custom_display_mod_main.cpp src\custom_display_layout.cpp src\custom_display_dialog_layout.cpp ^
-       src\custom_display_dialog_text.cpp src\custom_display_dialog_native.cpp ^
-       src\custom_display_dialog_native_bindings.cpp src\custom_display_dialog_controller.cpp ^
-       src\custom_display_vehicle_observer.cpp src\custom_display_observer.cpp ^
-       src\custom_display_catalogue.cpp src\custom_display_dialog_callbacks.cpp ^
-       src\custom_display_dialog_input.cpp src\custom_display_registry.cpp ^
-       src\engine_discovery.cpp src\engine_bindings.cpp src\log.cpp ^
-   /Fo:build\mods\CustomDisplay\ /Fe:build\mods\CustomDisplay\custom_display.dll ^
-   /link /DLL /MANIFEST:NO /DEBUG:NONE /OPT:REF /OPT:ICF opengl32.lib bcrypt.lib || exit /b 1
-
-if exist mods\CustomDisplay\mod.json (
-  copy /Y mods\CustomDisplay\mod.json build\mods\CustomDisplay\mod.json >nul
-)
 
 rem Optional deployment if --deploy <path> or STORMWORKS_DIR is set
 set "TARGET_GAME="
@@ -68,9 +48,6 @@ if defined TARGET_GAME (
     echo.
     echo Deploying to %TARGET_GAME%...
     copy /Y "%~dp0build\iphlpapi.dll" "%TARGET_GAME%\iphlpapi.dll" >nul
-    if not exist "%TARGET_GAME%\mods\CustomDisplay" mkdir "%TARGET_GAME%\mods\CustomDisplay"
-    copy /Y "%~dp0build\mods\CustomDisplay\custom_display.dll" "%TARGET_GAME%\mods\CustomDisplay\custom_display.dll" >nul
-    copy /Y "%~dp0build\mods\CustomDisplay\mod.json" "%TARGET_GAME%\mods\CustomDisplay\mod.json" >nul
     echo Deployment completed successfully.
   ) else (
     echo WARNING: Target game directory does not contain stormworks64.exe: %TARGET_GAME%
@@ -80,4 +57,3 @@ if defined TARGET_GAME (
 echo.
 echo Build successful:
 echo   - %~dp0build\iphlpapi.dll
-echo   - %~dp0build\mods\CustomDisplay\custom_display.dll

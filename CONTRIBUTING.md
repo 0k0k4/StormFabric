@@ -24,7 +24,6 @@ build.bat
 
 This compiles:
 - `build/iphlpapi.dll` (The main proxy loader)
-- `build/mods/CustomDisplay/custom_display.dll`
 
 To build the example plugins:
 

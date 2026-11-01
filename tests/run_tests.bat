@@ -66,38 +66,12 @@ build\tests\notification_overlay_tests.exe || exit /b 1
 cl /nologo /O2 /MT /EHsc /std:c++17 /W4 tests\video_model_tests.cpp /Fo:build\tests\ /Fe:build\tests\video_model_tests.exe || exit /b 1
 build\tests\video_model_tests.exe || exit /b 1
 
-cl /nologo /O2 /MT /EHsc /std:c++17 /W4 tests\custom_display_model_tests.cpp /Fo:build\tests\ /Fe:build\tests\custom_display_model_tests.exe || exit /b 1
-build\tests\custom_display_model_tests.exe || exit /b 1
-
-cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /WX tests\custom_display_dialog_tests.cpp /Fo:build\tests\ /Fe:build\tests\custom_display_dialog_tests.exe || exit /b 1
-build\tests\custom_display_dialog_tests.exe || exit /b 1
-
-cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /WX tests\custom_display_dialog_text_tests.cpp src\custom_display_dialog_text.cpp /Fo:build\tests\ /Fe:build\tests\custom_display_dialog_text_tests.exe || exit /b 1
-build\tests\custom_display_dialog_text_tests.exe || exit /b 1
-
-cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /WX tests\custom_display_dialog_native_tests.cpp src\custom_display_dialog_native.cpp src\custom_display_dialog_controller.cpp src\custom_display_dialog_text.cpp src\custom_display_catalogue.cpp src\custom_display_dialog_callbacks.cpp src\custom_display_dialog_input.cpp /Fo:build\tests\ /Fe:build\tests\custom_display_dialog_native_tests.exe || exit /b 1
-build\tests\custom_display_dialog_native_tests.exe || exit /b 1
-
-cl /nologo /O2 /MT /EHsc /std:c++17 /W4 tests\custom_display_targets_tests.cpp /Fo:build\tests\ /Fe:build\tests\custom_display_targets_tests.exe || exit /b 1
-build\tests\custom_display_targets_tests.exe || exit /b 1
-
-cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /WX tests\custom_display_admission_tests.cpp /Fo:build\tests\ /Fe:build\tests\custom_display_admission_tests.exe || exit /b 1
-build\tests\custom_display_admission_tests.exe || exit /b 1
-
-cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
-   tests\custom_display_observer_tests.cpp src\custom_display_layout.cpp src\engine_bindings.cpp src\engine_discovery.cpp /Fo:build\tests\ /Fe:build\tests\custom_display_observer_tests.exe /link bcrypt.lib || exit /b 1
-build\tests\custom_display_observer_tests.exe || exit /b 1
-
-cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /WX /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
-   tests\custom_display_vehicle_observer_tests.cpp src\custom_display_dialog_layout.cpp src\engine_bindings.cpp src\engine_discovery.cpp /Fo:build\tests\ /Fe:build\tests\custom_display_vehicle_observer_tests.exe /link bcrypt.lib || exit /b 1
-build\tests\custom_display_vehicle_observer_tests.exe || exit /b 1
-
 cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
    tests\video_backend_tests.cpp src\engine_bindings.cpp src\engine_discovery.cpp /Fo:build\tests\ /Fe:build\tests\video_backend_tests.exe /link opengl32.lib bcrypt.lib || exit /b 1
 build\tests\video_backend_tests.exe || exit /b 1
 
 cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
-   tests\engine_discovery_tests.cpp src\engine_discovery.cpp src\custom_display_layout.cpp src\custom_display_dialog_layout.cpp src\custom_display_dialog_native.cpp src\custom_display_dialog_native_bindings.cpp /Fo:build\tests\ /Fe:build\tests\engine_discovery_tests.exe || exit /b 1
+   tests\engine_discovery_tests.cpp src\engine_discovery.cpp /Fo:build\tests\ /Fe:build\tests\engine_discovery_tests.exe || exit /b 1
 
 if defined GAME_EXE if exist "%GAME_EXE%" (
   build\tests\engine_discovery_tests.exe "%GAME_EXE%" || exit /b 1
