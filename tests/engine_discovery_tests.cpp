@@ -132,7 +132,17 @@ int main(int argc,char** argv) {
     if(argc<=2)assert(result.GroupReady(4) && result.GroupReady(8));
     assert(result.Address(0xb88818)==0xb88818);
     assert(result.Address(0xb70ea0)==0xb70ea0);
+    auto* dos=reinterpret_cast<IMAGE_DOS_HEADER*>(image.data());
+    auto* nt=reinterpret_cast<IMAGE_NT_HEADERS64*>(image.data()+dos->e_lfanew);
     nt->FileHeader.TimeDateStamp^=1;
+    auto unknown=Discover(image.data(),image.size(),&TestProgress);
+    assert(unknown.validImage && !unknown.reviewedBuild);
+    assert(unknown.Address(0xb88818)==0xb88818);
+    assert(unknown.GroupReady(1) && unknown.GroupReady(2) && unknown.GroupReady(32));
+    assert(unknown.GroupReady(64) && unknown.GroupReady(128));
+    assert(unknown.GroupReady(256));
+    assert(unknown.GroupReady(512));
+    assert(!unknown.GroupReady(4) && !unknown.GroupReady(8));
     // An overwritten native slot must not be accepted as the same RTTI class.
     uint64_t original=0;memcpy(&original,image.data()+0xb88818+8,8);
     uint64_t external=1;memcpy(image.data()+0xb88818+8,&external,8);
