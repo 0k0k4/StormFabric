@@ -145,3 +145,103 @@ ne garantissent pas la récupération après une corruption mémoire ou une erre
   modifié et d'un horodatage de build différent.
 - **Pas de test en jeu de cette migration** : vérifier le menu, les widgets et les callbacks
   Lua/custom, le Help et le hot-reload avant de considérer l'intégration validée au runtime.
+
+## Primitives natives : `host->api->native` (extension ajoutée)
+
+`SwNativeApi` est **ajoutée à la fin** de `SwEngineApi` (`docs/native_api.md`).
+`abiVersion` reste **1** : un mod compilé avec l'ancien en-tête continue de fonctionner,
+et un mod récent doit vérifier la présence du champ avant de l'utiliser :
+
+```cpp
+if (host->api->structSize < offsetof(SwEngineApi, native) + sizeof(host->api->native) ||
+    !host->api->native ||
+    host->api->native->structSize < sizeof(SwNativeApi) ||
+    host->api->native->version != SW_NATIVE_API_VERSION) return false;
+```
+
+Ces primitives sont **génériques** : le loader ne contient aucune logique de mod. Chaque
+adresse vient de son profil de découverte compilé (table de bindings revue + contrats
+d'octets retenus) et est revalidée avant d'être rendue. **Fail-closed** : un contrat
+absent, ambigu ou modifié renvoie `NULL` / `SW_NOT_FOUND` / `SW_CONFLICT` et **aucune
+écriture n'est effectuée**.
+
+### Signatures C exactes
+
+```c
+typedef struct SwEngineString { char* data; uint32_t len; uint32_t cap; } SwEngineString;
+
+typedef struct SwNativeApi {
+    uint32_t structSize;   /* sizeof(SwNativeApi) */
+    uint32_t version;      /* SW_NATIVE_API_VERSION */
+
+    const void* (*findSymbol)(const SwModHost*, const char* role);
+    SwResult (*findSignature)(const SwModHost*, const void* bytes, const void* mask,
+                              size_t size, const void** address);
+    SwResult (*readMemory)(const SwModHost*, const void* address, void* out, size_t size);
+    SwResult (*writeMemory)(const SwModHost*, void* address, const void* data, size_t size);
+    SwResult (*hookInline)(const SwModHost*, void* target, void* detour,
+                           const void* expectedBytes, size_t prologueBytes,
+                           void** trampoline, SwHandle* handle);
+    SwResult (*hookRestore)(const SwModHost*, SwHandle handle);
+    void* (*gameAlloc)(const SwModHost*, size_t size);
+    void  (*gameFree)(const SwModHost*, void* block);
+    SwResult (*stringMake)(const SwModHost*, SwEngineString* out, const char* utf8);
+    void  (*stringFree)(const SwModHost*, SwEngineString* string);
+    void* (*codeAllocNear)(const SwModHost*, const void* target, size_t size);
+    void  (*codeFree)(const SwModHost*, void* block);
+    uint32_t (*engineBuild)(const SwModHost*);
+} SwNativeApi;
+```
+
+### Rôles résolus par `findSymbol` (version-gardés)
+
+| Rôle | Contrat |
+|---|---|
+| `engine.alloc` | `operator new(size_t)` du jeu (binding revu) |
+| `engine.string.reserve` | réserve de chaîne moteur `(EStr*, uint32_t)` |
+| `engine.string.free` | désallocateur de chaîne/bloc moteur |
+| `engine.localized` | table de localisation `(EStr*, int)` |
+| `engine.component.lookup` | lookup de définition de composant (contrat d'octets) |
+| `engine.component.clear` | `ComponentRegistry::Clear` (contrat d'octets) |
+| `engine.component.grow` | croissance d'un ring de registre (contrat d'octets) |
+| `engine.localization.register` | insertion dans la table de localisation (contrat d'octets) |
+
+Un rôle inconnu, absent du build, ambigu (plusieurs corps identiques) ou dont les octets
+retenus ne correspondent plus renvoie `NULL`. Aucune RVA n'est devinée.
+
+`engineBuild` renvoie `1`/`2` pour les deux builds d'exécutable revus, `0` sinon (toutes
+les autres primitives restent alors inertes). Les dispositions qui ont changé entre les
+deux builds (par ex. la taille d'une structure) doivent être sélectionnées par le mod à
+partir de cette valeur.
+
+`findSignature` scanne les sections exécutables de l'image pour `bytes[i] & mask[i]`
+(motif 8..512 octets, masque strictement `0x00`/`0xFF`) via `discovery::Find` :
+`SW_OK` + adresse seulement sur une occurrence **unique**, `SW_NOT_FOUND` si absente,
+`SW_CONFLICT` si ambiguë. C'est le mécanisme à utiliser pour un site propre à un mod.
+
+### Sécurité des primitives
+
+- **Lecture/écriture** : la plage entière doit être `MEM_COMMIT`, sans `PAGE_GUARD` ni
+  `PAGE_NOACCESS` (taille bornée à 256 Mo). Une écriture sur page exécutable utilise
+  `PAGE_EXECUTE_READWRITE`, **restaure la protection d'origine**, puis
+  `FlushInstructionCache`. Échec de validation ⇒ `SW_INVALID_ARGUMENT`, **aucune écriture**.
+- **Hook inline** : `target` doit être une page exécutable validée, `prologueBytes` ∈ [5, 32]
+  et couvrir des instructions entières. `expectedBytes` (recommandé) est comparé octet par
+  octet ; toute différence ⇒ `SW_CONFLICT` **avant** écriture. Le loader construit un
+  trampoline (prologue copié + saut absolu vers `target + prologueBytes`) qui reste sa
+  propriété : ne pas le libérer, ne pas le modifier. La publication du saut est ordonnée
+  (queue d'instruction d'abord, opcode en dernier).
+- **Restauration** : `hookRestore` réécrit le prologue d'origine (protection restaurée,
+  cache d'instruction vidé) ; l'appel est **idempotent** (`SW_OK` même si déjà restauré).
+  Les hooks d'un mod sont automatiquement restaurés par le loader **avant**
+  `FreeLibrary` du plugin. L'ordre de démontage est : hooks du mod d'abord, puis le
+  loader (`DLL_PROCESS_DETACH`), en ordre inverse d'installation.
+- **Mémoire** : `gameAlloc` = `operator new` du jeu. Le bloc appartient au moteur : un mod
+  ne le libère pas (le `operator delete` correspondant n'est pas certifié). `gameFree`
+  appelle le désallocateur de chaîne/bloc revu : ne lui passer que des pointeurs alloués
+  par le moteur. Pour les chaînes, utiliser `stringMake` / `stringFree` (le moteur les
+  libère lui-même dans ses destructeurs).
+- **Isolation** : les handles sont des identités du loader, jamais des pointeurs. Un handle
+  d'un autre propriétaire est refusé (`SW_INVALID_OWNER`) et un handle inconnu renvoie
+  `SW_NOT_FOUND`. `codeAllocNear` alloue dans ±2 Go de la cible (utile à un `jmp rel32`) et
+  libère automatiquement les blocs du mod à son déchargement.

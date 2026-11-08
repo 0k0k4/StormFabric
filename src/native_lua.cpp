@@ -53,6 +53,7 @@ const SwModHost* g_host = nullptr;
 uint8_t* g_base = nullptr;
 bool g_enabled = false;
 bool g_installed = false;
+bool g_qolEditorInstalled = false; // optional QoL/editor hooks, installed separately
 thread_local uintptr_t g_upvalueOverride = 0;
 
 struct LibraryFunction {
@@ -1296,16 +1297,14 @@ bool PatchVtableSlot(void** vt, size_t slot, void* hook, void** origOut) {
 bool swml::EnableNativeLua(const SwModHost* host) {
     if (!host || !host->gameBase) return false;
     g_host = host;
-    if (g_installed) {
-        g_enabled = true;
-        return true;
-    }
-    g_host = host;
-    if (!host || !host->gameBase) return false;
+    if (g_installed) return true;
     g_base = reinterpret_cast<uint8_t*>(host->gameBase);
     if (!ValidateLuaProfile(g_base)) return false;
 
     // Reference keys are translated only through the reviewed build profile.
+    // Core service only: primitives, table extras and microcontroller VM lifecycle
+    // slots. Optional QoL/editor targets are bound in EnableNativeQolEditor so
+    // runtime Lua startup never depends on them.
     g_opNew        = reinterpret_cast<fn_op_new_t>(g_base + EngineRva(g_base, 0x957478));
     g_strReserve   = reinterpret_cast<fn_str_reserve_t>(g_base + EngineRva(g_base, 0x17cb00));
     g_strFree      = reinterpret_cast<fn_str_free_t>(g_base + EngineRva(g_base, 0x9b15a0));
@@ -1318,9 +1317,6 @@ bool swml::EnableNativeLua(const SwModHost* host) {
     g_rawgeti      = reinterpret_cast<fn_rawgeti_t>(g_base + EngineRva(g_base, 0x0982c0));
     g_pushcclosure = reinterpret_cast<fn_pushcclosure_t>(g_base + EngineRva(g_base, 0x098050));
     g_setfield     = reinterpret_cast<fn_setfield_t>(g_base + EngineRva(g_base, 0x0983d0));
-    g_luaopenMath  = reinterpret_cast<fn_luaopen_math_t>(g_base + EngineRva(g_base, 0x0abd60));
-    g_getTimeMs    = reinterpret_cast<fn_get_time_ms_t>(g_base + EngineRva(g_base, 0x174f60));
-    g_origTimeoutHook = reinterpret_cast<fn_lua_hook_t>(g_base + EngineRva(g_base, 0x2e6b00));
 
     // Optional P0 extension: no address fallback when the central profile lacks a key.
     // Parent merges tools/p0_lua_binding_evidence.json into its reviewed binding table.
@@ -1330,6 +1326,49 @@ bool swml::EnableNativeLua(const SwModHost* host) {
         g_getfield = reinterpret_cast<fn_getfield_t>(g_base + EngineRva(g_base, 0x098130));
         g_rawrunprotected = reinterpret_cast<fn_rawrunprotected_t>(g_base + EngineRva(g_base, 0x0a26f0));
     }
+
+    g_mcLuaVt      = reinterpret_cast<void**>(g_base + EngineRva(g_base, 0xb6dac0));
+
+    // Vérification de sécurité des slots de vtable avant de poser les hooks
+    if (g_mcLuaVt[1] != g_base + EngineRva(g_base, 0x2e5ad0) ||
+        g_mcLuaVt[3] != g_base + EngineRva(g_base, 0x2e6050)) {
+        if (host->log) {
+            host->log("mc_lua_qol", "ERROR: Vtable slots mismatch — hooks aborted");
+        }
+        return false;
+    }
+
+    const swml::SlotPatch patches[] = {
+        {&g_mcLuaVt[1], g_base+EngineRva(g_base,0x2e5ad0), reinterpret_cast<void*>(&HkMcLuaDestroy), reinterpret_cast<void**>(&g_origMcLuaDestroy)},
+        {&g_mcLuaVt[3], g_base+EngineRva(g_base,0x2e6050), reinterpret_cast<void*>(&HkMcLuaInit), reinterpret_cast<void**>(&g_origMcLuaInit)}
+    };
+    if (!swml::PatchSlots(patches, _countof(patches))) {
+        DisableNativeLua();
+        if (host->log) host->log("mc_lua_qol", "ERROR: VirtualProtect failed on Lua vtables");
+        return false;
+    }
+
+    if (host->log) {
+        host->log("mc_lua_qol",
+                  "Service Lua central installe : bibliotheques personnalisees et evenements VM (QoL/editeur optionnels separes)");
+    }
+    g_installed = true;
+    return true;
+}
+
+// Optional QoL/editor hooks are a separate activation: validated, bound and
+// installed only when a mod asks for them, never as a side effect of core Lua
+// startup. PatchSlots is transactional, so a failed pass leaves no editor hook.
+bool swml::EnableNativeQolEditor(const SwModHost* host) {
+    if (!host || !host->gameBase) return false;
+    if (g_qolEditorInstalled) return true;
+    if (!g_installed) return false;
+    g_host = host;
+    if (!ValidateQolEditorProfile(g_base)) return false;
+
+    g_luaopenMath  = reinterpret_cast<fn_luaopen_math_t>(g_base + EngineRva(g_base, 0x0abd60));
+    g_getTimeMs    = reinterpret_cast<fn_get_time_ms_t>(g_base + EngineRva(g_base, 0x174f60));
+    g_origTimeoutHook = reinterpret_cast<fn_lua_hook_t>(g_base + EngineRva(g_base, 0x2e6b00));
 
     g_drawLine     = reinterpret_cast<fn_draw_line_t>(g_base + EngineRva(g_base, 0x2e3bc0));
     g_drawRect     = reinterpret_cast<fn_draw_rect_t>(g_base + EngineRva(g_base, 0x2e3eb0));
@@ -1345,43 +1384,33 @@ bool swml::EnableNativeLua(const SwModHost* host) {
     g_editboxSet   = reinterpret_cast<fn_editbox_set_t>(g_base + EngineRva(g_base, 0x25ed10));
     g_scrollFin    = reinterpret_cast<fn_scroll_fin_t>(g_base + EngineRva(g_base, 0x24b650));
 
-    g_mcLuaVt      = reinterpret_cast<void**>(g_base + EngineRva(g_base, 0xb6dac0));
     g_scriptTabVt  = reinterpret_cast<void**>(g_base + EngineRva(g_base, 0xb67728));
     g_helpTabVt    = reinterpret_cast<void**>(g_base + EngineRva(g_base, 0xae9a20));
 
-    // Vérification de sécurité des slots de vtable avant de poser les hooks
-    if (g_mcLuaVt[1] != g_base + EngineRva(g_base, 0x2e5ad0) ||
-        g_mcLuaVt[3] != g_base + EngineRva(g_base, 0x2e6050) ||
-        g_scriptTabVt[1] != g_base + EngineRva(g_base, 0x63f550) ||
+    if (g_scriptTabVt[1] != g_base + EngineRva(g_base, 0x63f550) ||
         g_scriptTabVt[3] != g_base + EngineRva(g_base, 0x63fbc0) ||
         g_helpTabVt[1] != g_base + EngineRva(g_base, 0x63d980)) {
         if (host->log) {
-            host->log("mc_lua_qol", "ERROR: Vtable slots mismatch — hooks aborted");
+            host->log("mc_lua_qol", "ERROR: Vtable slots mismatch (editor) — hooks aborted");
         }
         return false;
     }
 
     const swml::SlotPatch patches[] = {
-        {&g_mcLuaVt[1], g_base+EngineRva(g_base,0x2e5ad0), reinterpret_cast<void*>(&HkMcLuaDestroy), reinterpret_cast<void**>(&g_origMcLuaDestroy)},
-        {&g_mcLuaVt[3], g_base+EngineRva(g_base,0x2e6050), reinterpret_cast<void*>(&HkMcLuaInit), reinterpret_cast<void**>(&g_origMcLuaInit)},
         {&g_scriptTabVt[1], g_base+EngineRva(g_base,0x63f550), reinterpret_cast<void*>(&HkScriptTabInit), reinterpret_cast<void**>(&g_origScriptTabInit)},
         {&g_scriptTabVt[3], g_base+EngineRva(g_base,0x63fbc0), reinterpret_cast<void*>(&HkScriptTabUpdate), reinterpret_cast<void**>(&g_origScriptTabUpdate)},
         {&g_helpTabVt[1], g_base+EngineRva(g_base,0x63d980), reinterpret_cast<void*>(&HkHelpTabInit), reinterpret_cast<void**>(&g_origHelpTabInit)}
     };
-    bool ok = swml::PatchSlots(patches, _countof(patches));
-
-    if (!ok) {
-        DisableNativeLua();
-        if (host->log) host->log("mc_lua_qol", "ERROR: VirtualProtect failed on Lua vtables");
+    if (!swml::PatchSlots(patches, _countof(patches))) {
+        if (host->log) host->log("mc_lua_qol", "ERROR: VirtualProtect failed on editor vtables");
         return false;
     }
 
+    g_qolEditorInstalled = true;
     if (host->log) {
         host->log("mc_lua_qol",
                   "Hooks Lua QoL installes : 25+ fonctions Lua + limite 131072 chars + CPU x10");
     }
-    g_installed = true;
-    g_enabled = true;
     return true;
 }
 

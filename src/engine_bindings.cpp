@@ -61,6 +61,7 @@ bool DiskHash(const wchar_t* path, const char* expected) {
 }
 }
 bool IsSupportedEngineBuild(uint8_t* base) { return Build(base) != 0; }
+uint32_t EngineBuild(uint8_t* base) { return static_cast<uint32_t>(Build(base)); }
 uint32_t EngineRva(uint8_t* base, uint32_t key) {
     int build = Build(base);
     if (!build) return 0;

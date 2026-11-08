@@ -11,6 +11,7 @@ namespace swml {
 uint32_t EngineRva(uint8_t*, uint32_t) { return 0; }
 bool ValidateEngineBinding(uint8_t*, uint32_t) { return false; }
 bool ValidateLuaProfile(uint8_t*) { return false; }
+bool ValidateQolEditorProfile(uint8_t*) { return false; }
 std::vector<std::pair<SwEventType,SwHandle>> lifecycleEvents;
 void QueueModLuaEvent(SwEventType type,SwHandle id) {lifecycleEvents.emplace_back(type,id);}
 }

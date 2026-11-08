@@ -74,7 +74,22 @@ int main(int argc, char** argv) {
     size_t constructor=nt->FileHeader.TimeDateStamp==0x6a392154 ? 0x365b80 : 0x364e20;
     image[constructor+0x90]^=1;assert(!swml::ValidateEngineLayouts(image.data()));image[constructor+0x90]^=1;
     assert(swml::ValidateLuaProfile(image.data()));
+    assert(swml::ValidateQolEditorProfile(image.data()));
     assert(swml::ValidateVideoProfile(image.data()));
+    // Capability separation: a corrupted optional editor target rejects the
+    // QoL/editor profile while the core Lua service stays available.
+    size_t editorSlot = swml::EngineRva(image.data(), 0x63f550); assert(editorSlot);
+    image[editorSlot] ^= 1;
+    assert(!swml::ValidateQolEditorProfile(image.data()));
+    assert(swml::ValidateLuaProfile(image.data()));
+    image[editorSlot] ^= 1;
+    assert(swml::ValidateQolEditorProfile(image.data()));
+    size_t scriptTable = swml::EngineRva(image.data(), 0xb67728); assert(scriptTable);
+    image[scriptTable + 8] ^= 1; // slot 1: editor hook conflict, not a core dependency
+    assert(!swml::ValidateQolEditorProfile(image.data()));
+    assert(swml::ValidateLuaProfile(image.data()));
+    image[scriptTable + 8] ^= 1;
+    assert(swml::ValidateQolEditorProfile(image.data()));
     for (uint32_t key : {0x74a538,0x6d87d0,0x74aa50,0x688ec0,0x367c80,0xb70ea0}) {
         size_t rva = swml::EngineRva(image.data(),key); assert(rva);
         image[rva] ^= 1;

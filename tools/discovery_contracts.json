@@ -353,7 +353,7 @@
       "start": 762592,
       "name": "native_ba2e0",
       "groups": [
-        "qol"
+        "lua"
       ],
       "bytes": "48895c2408574883ec20458bc8488bda418bf8448b420c488b521049c1e00449c1e104e8a81cffff8b530c488943103bd773228bc28bcf2bca48c1e0048bd14533c0488b4b10488d401044894401f84883ea0175ed897b0c488b5c24304883c4205fc3",
       "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",

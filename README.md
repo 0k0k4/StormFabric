@@ -23,7 +23,7 @@ Using an `iphlpapi.dll` proxy, StormFabric integrates a native **MODS** menu dir
 - [Creating a Mod](#creating-a-mod)
 - [Building & Testing](#building--testing)
 - [Architecture & Documentation](#architecture--documentation)
-- [Community Mods](#community-mods)
+- [Mods](#mods)
 - [Disclaimer & License](#disclaimer--license)
 
 ---
@@ -217,9 +217,13 @@ The offline unit test suite uses mocked backends and does not require launching 
 
 ---
 
-## Community Mods
+## Mods
 
-Developing a mod using StormFabric? Open an Issue or Pull Request to get your mod featured here!
+StormFabric is a **generic loader**: it contains no game-specific mod code. Individual mods are maintained in their own repositories and installed under `<Stormworks>/mods/`.
+
+The component-catalogue mod that used to live here is now maintained in its own separate repository (a sibling checkout of this one). Its sources, documentation and assets no longer belong to StormFabric, and the loader exposes only the generic native primitives that such a mod needs.
+
+The example mods in [`examples/`](examples/) demonstrate the SDK and remain part of this repository. Developing a mod using StormFabric? Open an Issue or Pull Request to get your mod listed here.
 
 ---
 

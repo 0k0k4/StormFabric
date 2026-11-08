@@ -17,7 +17,7 @@ struct EStr {
     uint32_t cap;  // capacité (puissance de 2, min 32)
 };
 
-// ---- Offsets des champs (objets UI ; voir le rapport) ---------------------------------------
+// ---- Offsets des champs (elements UI ; voir le rapport) ---------------------------------------
 namespace off {
 // mm_ui_element / mm_ui_element_composite / c_ui_element_composite_ext (0x58 octets)
 constexpr size_t kX = 0x08, kY = 0x0c, kW = 0x10, kH = 0x14, kAnchor = 0x18;

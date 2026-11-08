@@ -9,6 +9,7 @@
 
 #include "log.h"
 #include "mods_ui.h"
+#include "native_prims.h"
 #include "proxy_exports.h"  // /export:... forwarders vers C:\Windows\System32\iphlpapi.dll
 
 namespace {
@@ -34,6 +35,11 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID) {
                 swml::Log("initialisation abandonnee : le jeu demarre sans modification");
             }
         }
+    } else if (reason == DLL_PROCESS_DETACH) {
+        // Safety net only: mods restore their own hooks in SwModUnload / their
+        // DllMain(DETACH) first (reverse load order), so anything still active
+        // here is restored last, in reverse installation order.
+        swml::native::ShutdownNativePrimitives();
     }
     return TRUE;
 }

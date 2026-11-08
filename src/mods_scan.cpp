@@ -88,7 +88,7 @@ bool FileExistsAndSize(const std::wstring& path, uint64_t* outSize = nullptr) {
 }
 
 // ---- Parseur JSON léger pour mod.json / manifest.json -----------------------------------------
-// Supporte chaînes, tableaux de chaînes, tableaux d'objets {"id": "..."}, booléens et commentaires.
+// Supporte chaînes, tableaux de chaînes, tableaux d'elements {"id": "..."}, booléens et commentaires.
 
 struct JsonManifest {
     std::string id;
@@ -220,7 +220,7 @@ struct JsonCursor {
         }
     }
 
-    // Parse une liste de chaînes (ou d'objets {"id": "..."}) ou une chaîne simple.
+    // Parse une liste de chaînes (ou d'elements {"id": "..."}) ou une chaîne simple.
     void ParseStringList(std::vector<std::string>& out) {
         char c = Peek();
         if (c == '"') {
@@ -239,7 +239,7 @@ struct JsonCursor {
                 std::string s;
                 if (ParseString(s) && !s.empty()) out.push_back(s);
             } else if (itemC == '{') {
-                // Objet de dépendance : ex. { "id": "sw_core_lib", "version": "1.0" }
+                // Entree de dependance : ex. { "id": "sw_core_lib", "version": "1.0" }
                 Match('{');
                 std::string depId;
                 while (pos < src.size() && !Match('}')) {

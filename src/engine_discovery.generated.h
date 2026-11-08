@@ -18551,7 +18551,7 @@ static const Contract kDiscoveryContracts[] = {
     {0x982c0,0x982c0,147,2,"native_982c0",kDiscovery_bytes_5,kDiscovery_mask_5,kDiscovery_edges_5,2,nullptr,0 },
     {0x983d0,0x983d0,223,2,"native_983d0",kDiscovery_bytes_6,kDiscovery_mask_6,kDiscovery_edges_6,3,nullptr,0 },
     {0xabd60,0xabd60,549,4,"native_abd60",kDiscovery_bytes_7,kDiscovery_mask_7,kDiscovery_edges_7,30,nullptr,0 },
-    {0xba2e0,0xba2e0,99,4,"native_ba2e0",kDiscovery_bytes_8,kDiscovery_mask_8,kDiscovery_edges_8,1,nullptr,0 },
+    {0xba2e0,0xba2e0,99,2,"native_ba2e0",kDiscovery_bytes_8,kDiscovery_mask_8,kDiscovery_edges_8,1,nullptr,0 },
     {0xba830,0xba830,90,2,"native_ba830",kDiscovery_bytes_9,kDiscovery_mask_9,kDiscovery_edges_9,2,nullptr,0 },
     {0xbe4a0,0xbe4a0,255,2,"native_be4a0",kDiscovery_bytes_10,kDiscovery_mask_10,kDiscovery_edges_10,2,nullptr,0 },
     {0x174f60,0x174f60,134,4,"native_174f60",kDiscovery_bytes_11,kDiscovery_mask_11,kDiscovery_edges_11,10,nullptr,0 },

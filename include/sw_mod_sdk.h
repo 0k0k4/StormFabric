@@ -141,6 +141,10 @@ struct SwEngineApi {
     const SwNativeUiApi* nativeUi;
     const SwStorageApi* storage;
     const SwWorldApi* world; // NULL until native world bindings are certified
+    // Appended: check structSize before reading. NULL when native primitives are
+    // unavailable. See SwNativeApi in sw_sdk_p0.h; abiVersion is unchanged so
+    // existing mods keep working byte-for-byte.
+    const SwNativeApi* native;
 };
 
 struct SwModHost {

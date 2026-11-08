@@ -246,7 +246,7 @@ source caméra / chaîne logique vidéo
 dimensions, ses deux références de cibles et les informations de son entrée vidéo.
 `0x748ea0` contient la préparation caméra/rendu de scène et la passe de dessin des
 scripts vers l'overlay. La caméra exacte et tous ses modes ne sont pas reconstitués
-exhaustivement dans ce rapport.
+en détail dans ce rapport.
 
 Le matériau `c_material_additive_monitor` est identifié par RTTI ; `0x688bf0` charge
 `graphics/shaders/additive_monitor` et enregistre les uniforms vidéo/overlay.
@@ -422,7 +422,7 @@ leurs entrées reproductibles correspondantes `*.commands.txt`.
 | `video_composition.txt` | orchestration caméra/overlay et appels par moniteur |
 
 Les recherches `N`/`G` du script existant sont plafonnées respectivement à 200/300
-résultats ; leurs inventaires ne doivent pas être interprétés comme exhaustifs.
+résultats ; leurs inventaires ne doivent pas être interprétés comme complets.
 Certaines requêtes exploratoires décompilent la fonction contenant l'adresse
 demandée, pas nécessairement une fonction commençant exactement à cette adresse.
 Les conclusions ci-dessus citent les fonctions effectivement identifiées.

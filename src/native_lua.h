@@ -3,6 +3,7 @@
 
 namespace swml {
 bool EnableNativeLua(const SwModHost* host);
+bool EnableNativeQolEditor(const SwModHost* host); // optional, independent of core Lua startup
 void DisableNativeLua();
 void SetNativeLuaEnabled(bool enabled);
 void ReleaseNativeLuaOwner(const SwModHost* owner);

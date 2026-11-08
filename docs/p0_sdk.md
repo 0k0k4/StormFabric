@@ -14,6 +14,8 @@ engine ABI v1 prefixes remain unchanged. New members are appended; check
 | Native HUD/editor UI | Opaque owner-scoped handles; roots, static windows, text, buttons, visibility, recursive destruction and native notifications | Fake native-tree tests + reviewed existing HUD/editor lifecycle bindings; not gameplay-tested |
 | Configuration/mod data | Bounded binary reads, size queries, atomic writes, safe keys, reparse/path checks | Actual filesystem tests; see `p0_storage.md` |
 | Lua values/tables | Appended `lua->extras`: strings including NUL, nil, integer, tables, fields, types, pop, string copy | Retained two-build static bindings + backend tests; see `p0_lua.md` |
+| Native primitives (optional) | `api->native`: profile-guarded symbol roles, bounded memory R/W, inline hooks with trampoline + idempotent restore, engine allocator/strings, executable scratch memory near a target | Contract unit tests (found/absent/ambiguous, hook/restore byte-identical, invalid address refused); mods use it only through the SDK; see `native_api.md` |
+| Lua QoL/editor (optional) | Enriched `input`/`output`/`screen`/`math` tables, editor unlock and in-editor help; validated and installed separately from core Lua via `lua->enableQol` | Fails closed when the editor profile is rejected; `SW_CAP_LUA_QOL` reports availability; see `engine_discovery.md` |
 
 Additional native UI static evidence: `tools/ghidra/p0_ui.txt` records that
 `remove_child` invokes native teardown/destruction, and the rectangle-button

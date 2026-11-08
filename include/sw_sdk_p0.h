@@ -12,7 +12,7 @@ typedef enum SwCapability {
     SW_CAP_NATIVE_HUD=1ull<<4, SW_CAP_LUA_EXTRAS=1ull<<5,
     SW_CAP_SIMULATION_EVENTS=1ull<<6, SW_CAP_WORLD=1ull<<7,
     SW_CAP_VEHICLES=1ull<<8, SW_CAP_PLAYERS=1ull<<9, SW_CAP_WORLD_STORAGE=1ull<<10,
-    SW_CAP_LUA_EVENTS=1ull<<11
+    SW_CAP_LUA_EVENTS=1ull<<11, SW_CAP_LUA_QOL=1ull<<12
 } SwCapability;
 typedef enum SwUiSurface { SW_SURFACE_MENU=0, SW_SURFACE_HUD=1, SW_SURFACE_EDITOR=2, SW_SURFACE_NONE=3 } SwUiSurface;
 typedef enum SwEventType {
@@ -82,3 +82,100 @@ typedef struct SwWorldApi {
     SwResult (*enumeratePlayers)(const SwModHost*,SwHandle* out,size_t capacity,size_t* count);
     SwResult (*getPlayerInfo)(const SwModHost*,SwHandle,SwPlayerInfo*);
 } SwWorldApi;
+
+// ---------------------------------------------------------------------------
+// Native primitives (SDK v2 extension, appended to SwEngineApi).
+//
+// Everything here is generic: the loader never contains mod-specific logic. A
+// mod asks for a *role* and the loader resolves it from its compiled discovery
+// profile; every address is validated against retained instruction bytes before
+// it is handed out. All primitives are fail-closed:
+//   * an unresolved/ambiguous contract yields NULL / SW_NOT_FOUND / SW_CONFLICT
+//     and NO memory is written;
+//   * every code write validates the target pages (VirtualQuery), removes
+//     PAGE_GUARD, restores the original protection and flushes the instruction
+//     cache; a failed restore is reported (the hook stays fail-closed).
+//   * inline hooks validate the expected prologue bytes and are always paired
+//     with a trampoline that the loader owns. Handles are owner-scoped and are
+//     restored automatically when the owning mod is unloaded.
+//
+// Handles are loader-owned identities, never pointers. Restoring twice is safe
+// (idempotent) and returns SW_OK.
+
+#define SW_NATIVE_API_VERSION 1
+
+// Mirrors the engine string layout {data,len,capacity}; 16 bytes on x64.
+// Only strings created with sw_engine_string_make may be freed with
+// sw_engine_string_free (the engine's aligned deallocator restores them).
+typedef struct SwEngineString {
+    char* data;
+    uint32_t len;   // length in bytes, excluding the terminating NUL
+    uint32_t cap;   // capacity (engine minimum is 32)
+} SwEngineString;
+
+typedef struct SwNativeApi {
+    uint32_t structSize;   // sizeof(SwNativeApi)
+    uint32_t version;      // SW_NATIVE_API_VERSION
+
+    // Resolve a generic engine symbol by role name from the compiled discovery
+    // profile. Known roles (stable identifiers, not addresses):
+    //   "engine.alloc"                 engine operator new(size_t)
+    //   "engine.string.reserve"        engine string reserve(EStr*, uint32_t)
+    //   "engine.string.free"           engine string deallocator(void*)
+    //   "engine.localized"             engine localization lookup(EStr*, int)
+    //   "engine.component.lookup"      component definition lookup(registry, name)
+    //   "engine.component.clear"       component registry clear(registry)
+    //   "engine.component.grow"        component ring grow(ring, capacity)
+    //   "engine.localization.register" localization table insert(key, value)
+    // Returns NULL when the role is unknown, absent from this build, ambiguous,
+    // or when its retained body contract does not match. Never guesses an RVA.
+    const void* (*findSymbol)(const SwModHost*, const char* role);
+
+    // Scan the engine's executable sections for a caller-supplied masked
+    // signature (bytes[i] & mask[i]). Fails closed: SW_NOT_FOUND when absent,
+    // SW_CONFLICT when more than one full body matches, SW_INVALID_ARGUMENT for
+    // an empty pattern or a pattern longer than 512 bytes.
+    SwResult (*findSignature)(const SwModHost*, const void* bytes, const void* mask,
+                              size_t size, const void** address);
+
+    // Bounded read/write. The whole range must be committed, readable (and for
+    // writes not PAGE_GUARD/PAGE_NOACCESS). Writes to executable pages use
+    // PAGE_EXECUTE_READWRITE, restore the original protection and flush the
+    // instruction cache. No write happens when validation fails.
+    SwResult (*readMemory)(const SwModHost*, const void* address, void* out, size_t size);
+    SwResult (*writeMemory)(const SwModHost*, void* address, const void* data, size_t size);
+
+    // Inline hook: writes an absolute jump at `target` and returns a trampoline
+    // that resumes at `target + prologueBytes`. `expectedBytes` (optional but
+    // strongly recommended) is the exact prologue the caller validated; a
+    // mismatch rejects the hook with SW_CONFLICT before any write. prologueBytes
+    // must be 5..32 and must cover whole instructions.
+    SwResult (*hookInline)(const SwModHost*, void* target, void* detour,
+                           const void* expectedBytes, size_t prologueBytes,
+                           void** trampoline, SwHandle* handle);
+    SwResult (*hookRestore)(const SwModHost*, SwHandle handle);
+
+    // Engine allocator (operator new). Blocks returned here belong to the engine:
+    // they are never released by the mod (the matching engine delete is not part
+    // of the certified profile). Use sw_engine_string_* for strings.
+    void* (*gameAlloc)(const SwModHost*, size_t size);
+    // Engine deallocator (the reviewed string/block free). Only pass pointers the
+    // engine allocated (strings and engine-owned buffers), never an
+    // sw_game_alloc block.
+    void (*gameFree)(const SwModHost*, void* block);
+
+    // Engine strings {data,len,capacity} allocated by the engine allocator.
+    SwResult (*stringMake)(const SwModHost*, SwEngineString* out, const char* utf8);
+    void (*stringFree)(const SwModHost*, SwEngineString* string);
+
+    // Executable scratch memory (e.g. a mod-owned thunk) allocated within +/-2GB
+    // of `target` when possible, released by the loader when the owner unloads.
+    void* (*codeAllocNear)(const SwModHost*, const void* target, size_t size);
+    void (*codeFree)(const SwModHost*, void* block);
+
+    // Reviewed engine build identity: 1 = first certified build, 2 = second,
+    // 0 = unknown (all other primitives stay inert). Layouts that changed between
+    // builds must be selected by the mod from this value, never by a hardcoded
+    // address.
+    uint32_t (*engineBuild)(const SwModHost*);
+} SwNativeApi;

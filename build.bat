@@ -35,6 +35,7 @@ cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /GS- /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D
        src\mods_scan.cpp src\mods_loader.cpp src\mods_ui.cpp src\engine_api.cpp src\engine_profile.cpp ^
        src\native_lua.cpp src\native_video.cpp src\notification_overlay.cpp src\ingame_notifications.cpp ^
        src\mod_runtime.cpp src\mod_native_ui.cpp src\mod_storage.cpp ^
+       src\native_prims.cpp src\native_symbols.cpp ^
    /Fo:build\core\ /Fe:build\iphlpapi.dll ^
    /link /DLL /MANIFEST:NO /DEBUG:NONE /OPT:REF /OPT:ICF opengl32.lib bcrypt.lib || exit /b 1
 

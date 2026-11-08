@@ -81,7 +81,7 @@
   },
   "unknowns_and_gates": [
     "This bounded static comparison does not certify the newer layout, ABI, hooks, field meanings, or semantic compatibility of complete subsystems.",
-    "UI check covers direct edges with retained contracts; it is not an exhaustive reimplementation of runtime discovery or recursive witness validation.",
+    "UI check covers direct edges with retained contracts; it is not an complete reimplementation of runtime discovery or recursive witness validation.",
     "E8 search is a byte scan, not a disassembler. Exact surrounding call-window match and decoded target/body corroboration support the GPU candidate.",
     "Do not mask object-field displacements or merely whitelist the new build. Any future support needs independently reviewed layout evidence.",
     "Future image-base-relative jump-table support would require typed operand/table/target corroboration rather than dropping fixed bytes or weakening safety gates.",

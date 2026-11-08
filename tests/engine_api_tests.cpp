@@ -3,6 +3,7 @@
 #include "../src/native_lua.h"
 #include "../src/native_video.h"
 #include "../src/engine_profile.h"
+#include "../src/mod_runtime.h"
 #include "../src/log.h"
 #include <cassert>
 #include <cstddef>
@@ -12,6 +13,7 @@
 
 namespace {
 bool profileValid = true;
+bool qolProfileValid = true;
 bool luaEnabled = false;
 const SwModHost* releasedOwner = nullptr;
 int initCount = 0, clickCount = 0;
@@ -51,7 +53,9 @@ void LogWarn(const char*, ...) {}
 void Notify(LogLevel, const std::string&, const std::string&, float) {}
 void LogDiscoveryProgress(const char*, size_t, size_t, const char*, bool) {}
 bool ValidateLuaProfile(uint8_t*) { return profileValid; }
+bool ValidateQolEditorProfile(uint8_t*) { return qolProfileValid; }
 bool EnableNativeLua(const SwModHost*) { ++initCount; return !failLuaInit; }
+bool EnableNativeQolEditor(const SwModHost*) { return !failLuaInit; }
 void DisableNativeLua() {}
 void SetNativeLuaEnabled(bool enabled) { luaEnabled = enabled; }
 void ReleaseNativeLuaOwner(const SwModHost* owner) { releasedOwner = owner; }
@@ -132,6 +136,24 @@ int main() {
     SwLuaFunction functions[] = {{"test", &Callback, nullptr}};
     assert(api->lua->registerLibrary(&a, "example", functions, 1));
     assert(!luaEnabled); // custom libraries do not implicitly enable all QoL features
+    swml::ReleaseEngineApiOwner(&a);
+
+    // Core Lua stays available while the optional QoL/editor profile is rejected:
+    // capability separation must not let editor targets gate custom libraries.
+    qolProfileValid = false;
+    swml::InitializeEngineApi(game);
+    api = swml::GetEngineApi();
+    assert(api->lua && !(swml::RuntimePrimitives()->capabilities() & SW_CAP_LUA_QOL));
+    swml::RegisterEngineApiOwner(&a);
+    assert(api->lua->registerLibrary(&a, "example", functions, 1));
+    assert(!luaEnabled);
+    assert(!api->lua->enableQol(&a)); // fail-closed: no editor hooks without a validated profile
+    qolProfileValid = true;
+    swml::InitializeEngineApi(game);
+    api = swml::GetEngineApi();
+    assert(swml::RuntimePrimitives()->capabilities() & SW_CAP_LUA_QOL);
+    swml::RegisterEngineApiOwner(&a);
+    assert(api->lua->enableQol(&a) && luaEnabled);
     swml::ReleaseEngineApiOwner(&a);
 
     profileValid = false;

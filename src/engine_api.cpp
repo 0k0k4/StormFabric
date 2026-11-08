@@ -5,6 +5,7 @@
 #include "mod_runtime.h"
 #include "mod_native_ui.h"
 #include "mod_storage.h"
+#include "native_prims.h"
 #include "log.h"
 
 #include <algorithm>
@@ -24,6 +25,7 @@ std::set<const SwModHost*> g_qolOwners;
 SwModHost g_serviceHost = {}; // never points into a plugin's instance or strings
 bool g_luaAvailable = false;
 bool g_luaStarted = false;
+bool g_qolAvailable = false;
 bool g_videoAvailable = false;
 
 struct ClickToken {
@@ -205,7 +207,15 @@ bool StartLua(const SwModHost* owner) {
     return true;
 }
 bool EnableQol(const SwModHost* owner) {
+    if (!g_qolAvailable) {
+        LogError("Engine API: QoL/editor unavailable for this build; core Lua libraries and VM events remain available");
+        return false;
+    }
     if (!StartLua(owner)) return false;
+    if (!EnableNativeQolEditor(&g_serviceHost)) {
+        LogError("Engine API: QoL/editor hook installation rejected (legacy conflict or changed editor profile)");
+        return false;
+    }
     g_qolOwners.insert(owner);
     SetNativeLuaEnabled(true);
     return true;
@@ -252,6 +262,10 @@ SwEngineApi g_engine = {SW_ENGINE_API_VERSION, sizeof(SwEngineApi), &g_ui, nullp
 
 void InitializeEngineApi(const sw::Api& api) {
     g_game = api;
+    // Generic native primitives: every engine address comes from the compiled
+    // discovery profile and is body-validated before a mod can use it.
+    native::SetNativeOwnerCheck(&IsEngineApiOwner);
+    native::InitializeNativePrimitives(api.base);
     g_luaAvailable = ValidateLuaProfile(api.base);
     g_lua = *NativeLuaPrimitives();
     g_lua.extras = NativeLuaExtras();
@@ -259,6 +273,9 @@ void InitializeEngineApi(const sw::Api& api) {
     g_lua.disableQol = &DisableQol;
     g_lua.registerLibrary = &RegisterLibrary;
     g_engine.lua = g_luaAvailable ? &g_lua : nullptr;
+    // Independent availability: optional QoL/editor targets must never gate the
+    // core Lua service (checkpoint: Core Lua vs QoL/editor capability separation).
+    g_qolAvailable = g_luaAvailable && ValidateQolEditorProfile(api.base);
     g_videoAvailable = g_luaAvailable && ValidateVideoProfile(api.base);
     g_video = *NativeVideoPrimitives();
     g_video.enable = &EnableVideo;
@@ -271,11 +288,14 @@ void InitializeEngineApi(const sw::Api& api) {
     g_engine.nativeUi = NativeUiPrimitives();
     g_engine.storage = GetStorageApi();
     g_engine.world = nullptr;
+    g_engine.native = native::NativePrimitives();
     SetRuntimeCapabilities(SW_CAP_UI_EVENTS | SW_CAP_MAIN_THREAD_TASKS |
         SW_CAP_KEYBOARD_ACTIONS | SW_CAP_MOD_STORAGE |
-        (g_luaAvailable ? SW_CAP_LUA_EXTRAS | SW_CAP_LUA_EVENTS : 0));
-    LogInfo("Engine API v%u initialized (UI available, Lua %s, video %s)", g_engine.abiVersion,
-            g_luaAvailable ? "validated" : "unavailable", g_videoAvailable ? "validated" : "unavailable");
+        (g_luaAvailable ? SW_CAP_LUA_EXTRAS | SW_CAP_LUA_EVENTS : 0) |
+        (g_qolAvailable ? SW_CAP_LUA_QOL : 0));
+    LogInfo("Engine API v%u initialized (UI available, Lua %s, QoL/editor %s, video %s)", g_engine.abiVersion,
+            g_luaAvailable ? "validated" : "unavailable", g_qolAvailable ? "validated" : "unavailable",
+            g_videoAvailable ? "validated" : "unavailable");
 }
 const SwEngineApi* GetEngineApi() { return &g_engine; }
 bool IsEngineApiOwner(const SwModHost* owner) { return ValidOwner(owner); }
@@ -287,6 +307,8 @@ void RegisterEngineApiOwner(const SwModHost* owner) {
         LogWarn("P0: mod storage unavailable for this owner");
 }
 void ReleaseEngineApiOwner(const SwModHost* owner) {
+    // Restore this mod's inline hooks BEFORE its DLL is freed.
+    native::ReleaseNativeOwner(owner);
     ReleaseModUiOwner(owner);
     ReleaseRuntimeOwner(owner);
     ReleaseModStorageOwner(owner);

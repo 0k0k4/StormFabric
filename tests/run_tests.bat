@@ -37,7 +37,7 @@ echo --- Running pure C/C++ unit test suites ---
 cl /nologo /TC /W4 /c tests\sdk_c_smoke.c /Fo:build\tests\sdk_c_smoke.obj || exit /b 1
 
 cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
-   tests\engine_api_tests.cpp src\engine_api.cpp src\game.cpp src\engine_bindings.cpp src\engine_discovery.cpp src\mod_runtime.cpp src\mod_native_ui.cpp src\mod_storage.cpp /Fo:build\tests\ /Fe:build\tests\engine_api_tests.exe /link bcrypt.lib || exit /b 1
+   tests\engine_api_tests.cpp src\engine_api.cpp src\game.cpp src\engine_bindings.cpp src\engine_discovery.cpp src\mod_runtime.cpp src\mod_native_ui.cpp src\mod_storage.cpp src\native_prims.cpp src\native_symbols.cpp /Fo:build\tests\ /Fe:build\tests\engine_api_tests.exe /link bcrypt.lib || exit /b 1
 build\tests\engine_api_tests.exe || exit /b 1
 
 cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
@@ -108,6 +108,12 @@ build\tests\p0_lua_backend_tests.exe || exit /b 1
 cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
    tests\p0_demo_tests.cpp src\mod_runtime.cpp src\mod_native_ui.cpp src\mod_storage.cpp /Fo:build\tests\ /Fe:build\tests\p0_demo_tests.exe || exit /b 1
 build\tests\p0_demo_tests.exe || exit /b 1
+
+
+cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
+   tests\native_prims_tests.cpp src\native_prims.cpp src\native_symbols.cpp ^
+   src\engine_bindings.cpp src\engine_discovery.cpp /Fo:build\tests\ /Fe:build\tests\native_prims_tests.exe /link bcrypt.lib || exit /b 1
+build\tests\native_prims_tests.exe || exit /b 1
 
 echo --- Running Python unit tests ---
 where python >nul 2>&1

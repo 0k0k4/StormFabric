@@ -28,7 +28,7 @@ scan would not be sufficient.
 | PE section scanning / address operands / RTTI / imports | Implemented; x64 instruction boundaries and operand offsets exported offline by Ghidra |
 | Terminal progress / persistent diagnostics | Implemented and console-buffer tested |
 | Native layout and data-reference certification | Direct loader-accessed layout witnesses reviewed for these two files; unknown builds remain diagnostic-only |
-| Core Lua vs QoL/editor capability separation | Pending; discovery groups exist, runtime Lua startup is not yet split |
+| Core Lua vs QoL/editor capability separation | Implemented; `ValidateLuaProfile` covers only core custom-library and VM-lifecycle keys, optional QoL/editor targets validate separately via `ValidateQolEditorProfile`, `enableQol` fails closed without them, and `SW_CAP_LUA_QOL` reports the independent availability |
 | Migrate Lua/video/notification hook consumers | Implemented central two-build bindings; legacy-hook conflict checks retained |
 | Atomic installation and dependency checks | All retained code/callee/slot/layout witnesses checked before startup writes; multi-vtable transactions acquire all pages before writes; video retains rollback |
 | Multiple actual versions + in-game validation | Both files pass offline ASLR/profile tests; newer native menu and both plugin startups verified; map/render tests remain |
@@ -172,8 +172,15 @@ an installed loader while the game is running.
 
 1. Verify native menu, map loading/notifications, editor, video effects/capture,
    overlays/tactile, multi-monitor rendering and GL lifecycle on the newer build.
-2. Split core custom libraries from optional QoL/editor hooks and expose independent
-   availability. Runtime Lua startup remains coupled to optional editor targets.
+2. Gameplay-verify the capability split: custom libraries and VM events must start
+   and run with QoL/editor targets absent, and `enableQol` must keep failing closed
+   when the editor profile is rejected. Discovered-but-unbound editor groups remain
+   diagnostic-only.
+   Gameplay confirmation (2026-11-06): the split loader (SHA-256 `9a0c1bc0…`, backup
+   `build/backups/qol-split-install-20261106-192126/`) was installed on the newer
+   root with the game stopped and validated by the user in play: the capability
+   split works as intended. A core-service-without-QoL session and a forced editor
+   profile rejection remain unobserved.
 3. Expand typed data-reference/layout witnesses to allow safely certified unknown
    builds. Whole-function contracts and compiler-generated indirect tables remain
    conservative; matching bodies alone still cannot activate another executable.

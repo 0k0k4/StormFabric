@@ -26,7 +26,7 @@ besoin d'adresses du jeu codées en dur.
 - [Compiler et tester](#compiler-et-tester)
 - [Documentation et architecture](#documentation-et-architecture)
 - [Origine du projet et assistance IA](#origine-du-projet-et-assistance-ia)
-- [Mods de la communauté](#mods-de-la-communauté)
+- [Mods](#mods)
 - [Licence et avertissement](#licence-et-avertissement)
 
 ---
@@ -228,10 +228,13 @@ Plusieurs modèles ont été utilisés au cours du développement :
 - **Gemini 4 Argon** : dépendances, isolation des DLLs locales, cycle de vie, interface et outillage.
 - **GPT 6.1 Sol** : centralisation des bindings, adaptation aux profils récents, extensions SDK P0 et tests.
 
-## Mods de la communauté
+## Mods
 
-Vous créez un mod avec ce loader ? Présentez-le via une Issue / Pull Request pour
-qu'il puisse être ajouté ici.
+StormFabric est un **loader générique** : il ne contient aucun code de mod spécifique à un jeu. Chaque mod vit dans son propre dépôt et s'installe dans `<Stormworks>/mods/`.
+
+Le mod d'exemple (injection au catalogue de composants) qui vivait ici est désormais maintenu dans un dépôt séparé (checkout voisin de celui-ci). Ses sources, sa documentation et ses assets ne font plus partie de StormFabric ; le loader n'expose que les primitives natives génériques dont ce type de mod a besoin.
+
+Les mods d'exemple de [`examples/`](examples/) illustrent le SDK et restent dans ce dépôt. Vous créez un mod avec ce loader ? Présentez-le via une Issue / Pull Request pour qu'il puisse être ajouté ici.
 
 ## Licence et avertissement
 

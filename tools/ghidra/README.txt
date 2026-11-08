@@ -1,7 +1,7 @@
 Dump.java : script Ghidra (headless) utilise pour extraire pseudo-code, vtables, signatures et RTTI
-du projet C:\GhidraProjects\Stormworks_decomp (programme stormworks64.exe).
+du workspace C:\GhidraProjects\Stormworks_decomp (programme stormworks64.exe).
 
-  analyzeHeadless <dossier_projet> Stormworks -process stormworks64.exe -noanalysis -readOnly \
+  analyzeHeadless <dossier_workspace> Stormworks -process stormworks64.exe -noanalysis -readOnly \
       -scriptPath <dossier de Dump.java> -postScript Dump.java commandes.txt sortie.txt
 
 Commandes (une par ligne dans commandes.txt) :
