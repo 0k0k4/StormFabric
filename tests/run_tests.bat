@@ -115,6 +115,16 @@ cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
    src\engine_bindings.cpp src\engine_discovery.cpp /Fo:build\tests\ /Fe:build\tests\native_prims_tests.exe /link bcrypt.lib || exit /b 1
 build\tests\native_prims_tests.exe || exit /b 1
 
+cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
+   tests\lua_bindings_tests.cpp src\native_prims.cpp src\native_symbols.cpp ^
+   src\engine_bindings.cpp src\engine_discovery.cpp /Fo:build\tests\ /Fe:build\tests\lua_bindings_tests.exe /link bcrypt.lib || exit /b 1
+build\tests\lua_bindings_tests.exe || exit /b 1
+
+cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
+   tests\component_attrs_tests.cpp src\native_prims.cpp src\native_symbols.cpp ^
+   src\engine_bindings.cpp src\engine_discovery.cpp /Fo:build\tests\ /Fe:build\tests\component_attrs_tests.exe /link bcrypt.lib || exit /b 1
+build\tests\component_attrs_tests.exe || exit /b 1
+
 echo --- Running Python unit tests ---
 where python >nul 2>&1
 if %ERRORLEVEL% equ 0 (

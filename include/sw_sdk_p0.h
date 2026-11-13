@@ -104,6 +104,23 @@ typedef struct SwWorldApi {
 
 #define SW_NATIVE_API_VERSION 1
 
+// One entry of the reviewed Lua binding table. The table is generated from the
+// modding kit (tools/gen_lua_bindings.py) and is immutable at runtime.
+//   name  : exact binding name in the game
+//   table : "base" | "mc" | "mission" | "other" | "stdlib"
+//   rva   : image-base-relative address (base 0x140000000); 0 means the entry is
+//           a Lua value without a function pointer and must not be called
+//   arity : smallest accepted argument count, -1 when not annotated
+#ifndef SW_LUA_BINDING_INFO_DEFINED
+#define SW_LUA_BINDING_INFO_DEFINED
+typedef struct SwLuaBindingInfo {
+    const char* name;
+    const char* table;
+    uint32_t rva;
+    int8_t arity;
+} SwLuaBindingInfo;
+#endif
+
 // Mirrors the engine string layout {data,len,capacity}; 16 bytes on x64.
 // Only strings created with sw_engine_string_make may be freed with
 // sw_engine_string_free (the engine's aligned deallocator restores them).
@@ -112,6 +129,35 @@ typedef struct SwEngineString {
     uint32_t len;   // length in bytes, excluding the terminating NUL
     uint32_t cap;   // capacity (engine minimum is 32)
 } SwEngineString;
+
+// One field of the game's component_physics_record (the record filled by the
+// component parser @ 0x3168d0). The table is generated from the reviewed kit
+// (tools/gen_component_attrs.py) and is immutable at runtime.
+//   name      : exact XML key read by the parser
+//   offset    : byte offset inside the component record
+//   width     : proven width in bytes (flags is 8, never assume it from type)
+//   type      : SwComponentAttrType
+//   isElement : true for an XML element (vector), false for an XML attribute or
+//               an internal field
+#ifndef SW_COMPONENT_ATTR_INFO_DEFINED
+#define SW_COMPONENT_ATTR_INFO_DEFINED
+typedef enum SwComponentAttrType {
+    SW_ATTR_FLOAT = 0,   // f32, width 4
+    SW_ATTR_INT = 1,     // i32 / enum_i32, width 4
+    SW_ATTR_BOOL = 2,    // bool, width 1
+    SW_ATTR_STRING = 3,  // engine string_t {char*,u32,u32}, width 16
+    SW_ATTR_UINT64 = 4,  // u64, width 8 (flags)
+    SW_ATTR_FLOAT3 = 5,  // fvec3, width 12
+    SW_ATTR_INT3 = 6      // ivec3, width 12
+} SwComponentAttrType;
+typedef struct SwComponentAttrInfo {
+    const char* name;       // nom XML exact
+    uint32_t offset;        // offset dans la structure du composant
+    uint8_t  width;         // largeur en octets
+    uint8_t  type;          // SwComponentAttrType
+    bool     isElement;     // attribut XML vs élément
+} SwComponentAttrInfo;
+#endif
 
 typedef struct SwNativeApi {
     uint32_t structSize;   // sizeof(SwNativeApi)
@@ -178,4 +224,33 @@ typedef struct SwNativeApi {
     // builds must be selected by the mod from this value, never by a hardcoded
     // address.
     uint32_t (*engineBuild)(const SwModHost*);
+
+    // Lua binding introspection (appended; check structSize before reading).
+    // The table is generated from the reviewed kit and never guesses an RVA.
+    //   luaBindingCount : number of entries (0 for an invalid owner)
+    //   luaBindingAt    : entry at index, NULL when out of bounds
+    //   luaBindingFind  : first entry with this exact name, NULL when unknown
+    // Duplicate names exist in the kit (e.g. "type" in base and stdlib); Find
+    // returns the first occurrence in table order, deterministically.
+    uint32_t (*luaBindingCount)(const SwModHost*);
+    const SwLuaBindingInfo* (*luaBindingAt)(const SwModHost*, uint32_t index);
+    const SwLuaBindingInfo* (*luaBindingFind)(const SwModHost*, const char* name);
+
+    // Component attribute introspection (appended; check structSize before
+    // reading). The table is generated from the reviewed kit and never guesses
+    // an offset or a width.
+    //   componentAttrCount : number of fields (0 for an invalid owner)
+    //   componentAttrAt    : field at index, NULL when out of bounds
+    //   componentAttrFind  : first field with this exact XML name, NULL when unknown
+    //   componentAttrRead  : read a scalar numeric field into *out
+    //   componentAttrWrite : write a scalar numeric field from value
+    // Read/Write are fail-closed: unknown name -> SW_NOT_FOUND, NULL component or
+    // unreadable/unwritable range -> SW_INVALID_ARGUMENT, and a non-scalar type
+    // (string or vector) is refused with SW_INVALID_ARGUMENT instead of being
+    // silently converted. The width always comes from the table.
+    uint32_t (*componentAttrCount)(const SwModHost*);
+    const SwComponentAttrInfo* (*componentAttrAt)(const SwModHost*, uint32_t index);
+    const SwComponentAttrInfo* (*componentAttrFind)(const SwModHost*, const char* name);
+    SwResult (*componentAttrRead)(const SwModHost*, const void* component, const char* name, double* out);
+    SwResult (*componentAttrWrite)(const SwModHost*, void* component, const char* name, double value);
 } SwNativeApi;

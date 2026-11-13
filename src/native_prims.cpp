@@ -13,6 +13,8 @@
 #include "engine_bindings.h"
 #include "engine_discovery.h"
 #include "log.h"
+#include "component_attrs.generated.h"
+#include "lua_bindings.generated.h"
 #include "native_symbols.h"
 
 namespace swml {
@@ -461,6 +463,134 @@ uint32_t EngineBuildPrim(const SwModHost* owner) {
     return EngineBuild(g_base);
 }
 
+// ---------------------------------------------------------------------------
+// Lua binding introspection. The table is compile-time data generated from the
+// reviewed kit; no game address is resolved or guessed here.
+// ---------------------------------------------------------------------------
+uint32_t LuaBindingCountPrim(const SwModHost* owner) {
+    if (!ValidOwner(owner)) return 0;
+    return static_cast<uint32_t>(kLuaBindingCount);
+}
+
+const SwLuaBindingInfo* LuaBindingAtPrim(const SwModHost* owner, uint32_t index) {
+    if (!ValidOwner(owner) || index >= kLuaBindingCount) return nullptr;
+    return &kLuaBindings[index];
+}
+
+const SwLuaBindingInfo* LuaBindingFindPrim(const SwModHost* owner, const char* name) {
+    if (!ValidOwner(owner) || !name) return nullptr;
+    for (size_t i = 0; i < kLuaBindingCount; ++i) {
+        if (strcmp(kLuaBindings[i].name, name) == 0) return &kLuaBindings[i];
+    }
+    return nullptr;
+}
+
+// ---------------------------------------------------------------------------
+// Component attribute introspection. The table is compile-time data generated
+// from the reviewed kit; no game address is resolved or guessed here. Read and
+// write validate the exact byte range with VirtualQuery and always use the
+// width from the table (flags is 8 bytes, not 4).
+// ---------------------------------------------------------------------------
+uint32_t ComponentAttrCountPrim(const SwModHost* owner) {
+    if (!ValidOwner(owner)) return 0;
+    return static_cast<uint32_t>(kComponentAttrCount);
+}
+
+const SwComponentAttrInfo* ComponentAttrAtPrim(const SwModHost* owner, uint32_t index) {
+    if (!ValidOwner(owner) || index >= kComponentAttrCount) return nullptr;
+    return &kComponentAttrs[index];
+}
+
+const SwComponentAttrInfo* ComponentAttrFindPrim(const SwModHost* owner, const char* name) {
+    if (!ValidOwner(owner) || !name) return nullptr;
+    for (size_t i = 0; i < kComponentAttrCount; ++i) {
+        if (strcmp(kComponentAttrs[i].name, name) == 0) return &kComponentAttrs[i];
+    }
+    return nullptr;
+}
+
+SwResult ComponentAttrReadPrim(const SwModHost* owner, const void* component,
+                               const char* name, double* out) {
+    if (!ValidOwner(owner) || !component || !name || !out) return SW_INVALID_ARGUMENT;
+    const SwComponentAttrInfo* info = ComponentAttrFindPrim(owner, name);
+    if (!info) return SW_NOT_FOUND;
+    // Strings and vectors are numeric-ish but not scalar: refuse explicitly
+    // rather than silently reading the first component or a pointer.
+    if (!SwComponentAttrIsScalarNumeric(info->type)) return SW_INVALID_ARGUMENT;
+    const uint8_t* address = static_cast<const uint8_t*>(component) + info->offset;
+    std::vector<PageRun> runs;
+    if (!InspectRange(address, info->width, /*forWrite=*/false, runs))
+        return SW_INVALID_ARGUMENT;
+    uint8_t raw[16] = {};
+    if (!SafeMemcpy(raw, address, info->width)) return SW_IO_ERROR;
+    switch (info->type) {
+        case SW_ATTR_FLOAT: {
+            float value = 0.0f;
+            memcpy(&value, raw, sizeof(value));
+            *out = value;
+            break;
+        }
+        case SW_ATTR_INT: {
+            int32_t value = 0;
+            memcpy(&value, raw, sizeof(value));
+            *out = value;
+            break;
+        }
+        case SW_ATTR_BOOL:
+            *out = raw[0] ? 1.0 : 0.0;
+            break;
+        case SW_ATTR_UINT64: {
+            uint64_t value = 0;
+            memcpy(&value, raw, sizeof(value));
+            *out = static_cast<double>(value);
+            break;
+        }
+        default:
+            return SW_INVALID_ARGUMENT;
+    }
+    return SW_OK;
+}
+
+SwResult ComponentAttrWritePrim(const SwModHost* owner, void* component,
+                                const char* name, double value) {
+    if (!ValidOwner(owner) || !component || !name) return SW_INVALID_ARGUMENT;
+    const SwComponentAttrInfo* info = ComponentAttrFindPrim(owner, name);
+    if (!info) return SW_NOT_FOUND;
+    if (!SwComponentAttrIsScalarNumeric(info->type)) return SW_INVALID_ARGUMENT;
+    uint8_t* address = static_cast<uint8_t*>(component) + info->offset;
+    uint8_t raw[16] = {};
+    switch (info->type) {
+        case SW_ATTR_FLOAT: {
+            const float converted = static_cast<float>(value);
+            memcpy(raw, &converted, sizeof(converted));
+            break;
+        }
+        case SW_ATTR_INT: {
+            if (!(value >= -2147483648.0 && value <= 2147483647.0))
+                return SW_INVALID_ARGUMENT;
+            const int32_t converted = static_cast<int32_t>(value);
+            memcpy(raw, &converted, sizeof(converted));
+            break;
+        }
+        case SW_ATTR_BOOL:
+            raw[0] = value != 0.0 ? 1 : 0;
+            break;
+        case SW_ATTR_UINT64: {
+            if (!(value >= 0.0 && value <= 18446744073709551615.0))
+                return SW_INVALID_ARGUMENT;
+            const uint64_t converted = static_cast<uint64_t>(value);
+            memcpy(raw, &converted, sizeof(converted));
+            break;
+        }
+        default:
+            return SW_INVALID_ARGUMENT;
+    }
+    const WriteOutcome outcome = WriteCodeRange(address, raw, info->width);
+    return outcome == WriteOutcome::kOk
+               ? SW_OK
+               : (outcome == WriteOutcome::kInvalid ? SW_INVALID_ARGUMENT : SW_IO_ERROR);
+}
+
 const SwNativeApi g_api = {
     sizeof(SwNativeApi),
     SW_NATIVE_API_VERSION,
@@ -477,6 +607,14 @@ const SwNativeApi g_api = {
     &CodeAllocNearPrim,
     &CodeFreePrim,
     &EngineBuildPrim,
+    &LuaBindingCountPrim,
+    &LuaBindingAtPrim,
+    &LuaBindingFindPrim,
+    &ComponentAttrCountPrim,
+    &ComponentAttrAtPrim,
+    &ComponentAttrFindPrim,
+    &ComponentAttrReadPrim,
+    &ComponentAttrWritePrim,
 };
 
 }  // namespace

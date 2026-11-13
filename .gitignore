@@ -76,3 +76,6 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
+
+# Kit de retro-ingenierie : NE PAS VERSIONNER (droits sur le contenu du jeu)
+stormworks-modding-kit/

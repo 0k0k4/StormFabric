@@ -170,6 +170,13 @@ absent, ambigu ou modifié renvoie `NULL` / `SW_NOT_FOUND` / `SW_CONFLICT` et **
 ```c
 typedef struct SwEngineString { char* data; uint32_t len; uint32_t cap; } SwEngineString;
 
+typedef struct SwLuaBindingInfo {
+    const char* name;   /* nom exact du binding dans le jeu */
+    const char* table;  /* "base" | "mc" | "mission" | "other" | "stdlib" */
+    uint32_t rva;       /* RVA (base 0x140000000), 0 = valeur Lua sans fonction */
+    int8_t arity;       /* plus petit nombre d'arguments accepté, -1 = inconnu */
+} SwLuaBindingInfo;
+
 typedef struct SwNativeApi {
     uint32_t structSize;   /* sizeof(SwNativeApi) */
     uint32_t version;      /* SW_NATIVE_API_VERSION */
@@ -190,6 +197,11 @@ typedef struct SwNativeApi {
     void* (*codeAllocNear)(const SwModHost*, const void* target, size_t size);
     void  (*codeFree)(const SwModHost*, void* block);
     uint32_t (*engineBuild)(const SwModHost*);
+
+    /* Ajouté : introspection des bindings Lua (vérifier structSize). */
+    uint32_t (*luaBindingCount)(const SwModHost*);
+    const SwLuaBindingInfo* (*luaBindingAt)(const SwModHost*, uint32_t index);
+    const SwLuaBindingInfo* (*luaBindingFind)(const SwModHost*, const char* name);
 } SwNativeApi;
 ```
 
@@ -218,6 +230,60 @@ partir de cette valeur.
 (motif 8..512 octets, masque strictement `0x00`/`0xFF`) via `discovery::Find` :
 `SW_OK` + adresse seulement sur une occurrence **unique**, `SW_NOT_FOUND` si absente,
 `SW_CONFLICT` si ambiguë. C'est le mécanisme à utiliser pour un site propre à un mod.
+
+### Introspection des bindings Lua
+
+La table `kLuaBindings` est **générée à la compilation** depuis le kit de rétro-ingénierie
+(`stormworks-modding-kit/lua-api/lua_bindings.json` + `annotated-bindings/`). Elle ne
+contient aucune adresse devinée et ne dépend pas de l'image chargée : ces trois primitives
+répondent même quand `engineBuild` vaut `0`. Elles servent à un mod à résoudre et valider
+ses propres appels (nom → RVA → arité), pas à appeler les fonctions du jeu.
+
+```c
+uint32_t (*luaBindingCount)(const SwModHost*);
+const SwLuaBindingInfo* (*luaBindingAt)(const SwModHost*, uint32_t index);
+const SwLuaBindingInfo* (*luaBindingFind)(const SwModHost*, const char* name);
+```
+
+- `luaBindingCount(host)` : nombre d'entrées de la table (427 pour le kit actuel).
+  Renvoie `0` si `host` est invalide (fail-closed).
+- `luaBindingAt(host, index)` : pointeur vers l'entrée `index`, ou `NULL` si `index`
+  est hors bornes (`index >= luaBindingCount`) ou si `host` est invalide. L'index `0`
+  est valide. Le pointeur appartient au loader et reste valide pendant toute la vie
+  du processus ; ne pas le libérer.
+- `luaBindingFind(host, name)` : première entrée dont le `name` est **exactement**
+  égal (comparaison sensible à la casse), ou `NULL` si `name` est `NULL`, vide,
+  inconnu, ou si `host` est invalide. Les doublons du kit sont résolus de façon
+  déterministe : c'est la première occurrence dans l'ordre de la table qui gagne.
+
+Sémantique des champs :
+
+- `rva` est relative à l'image (base `0x140000000`). `rva == 0` marque une entrée
+  **valeur Lua** sans pointeur de fonction (`_G`, `_VERSION`, `pi`, `huge`, …) :
+  elle ne doit pas être appelée.
+- `arity` est le **plus petit** nombre d'arguments accepté. Le kit annote parfois
+  plusieurs arités (`1 | 4`, `13 | 17`) ; une seule valeur `int8_t` ne peut pas
+  représenter un ensemble, donc la table stocke le minimum. `-1` signifie « non
+  annoté » (ou `variable`) : ne pas en déduire une arité.
+
+**Incohérence connue du kit, à ne pas masquer** : les 427 entrées ne portent que
+391 noms distincts. 34 noms sont dupliqués (33 deux fois, `type` quatre fois),
+par exemple `ipairs`/`next`/`pairs` dans `base`, `multiply` dans `mission`, ou
+`type` dans `base` et `stdlib`. La table générée conserve **toutes** les entrées
+(le total doit rester 427) ; `luaBindingFind` renvoie la première. Un mod qui a
+besoin de toutes les occurrences doit parcourir `luaBindingAt`.
+
+Régénération de la table (le kit est en lecture seule) :
+
+```bat
+python tools\gen_lua_bindings.py
+```
+
+Le script est **idempotent** : relancé, il produit un fichier identique (même
+SHA-256). Il écrit aussi les `static_assert` de contrôle (total, comptage par
+table, nombre d'entrées typées) ; une modification du kit qui ne correspondrait
+plus aux constantes casse la compilation au lieu de passer inaperçue. Ne jamais
+éditer `src/lua_bindings.generated.h` à la main.
 
 ### Sécurité des primitives
 
