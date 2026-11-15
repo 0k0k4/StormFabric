@@ -2,15 +2,12 @@
 Unique full-body matching + RTTI + decoded references determine identities.
 This never loads/runs either executable and does not loosen unknown-build gates.
 """
-import hashlib
 import json
 import struct
-from pathlib import Path
-from compare_newer_offline import PE
+from compare_newer_offline import PE, ROOT, reference_exe, newer_exe, text_sha256
 
-ROOT = Path(__file__).resolve().parents[1]
-old=PE(ROOT.parent/'Stormworks/stormworks64.exe')
-new=PE(Path(sys.argv[1] if len(sys.argv) > 1 else os.environ.get('STORMWORKS_NEWER_EXE', r'..\Stormworks_Newer\stormworks64.exe')))
+old=PE(reference_exe())
+new=PE(newer_exe())
 assert old.sha256=='55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3'
 assert new.sha256=='f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699'
 data=json.loads((ROOT/'tools/discovery_contracts.json').read_text())
@@ -21,7 +18,7 @@ p0=json.loads((ROOT/'tools/p0_lua_contracts.json').read_text())
 p0_review=json.loads((ROOT/'tools/p0_lua_binding_evidence.json').read_text())
 assert p0['reference_sha256']==old.sha256
 assert p0_review['reference_sha256']==old.sha256 and p0_review['newer_sha256']==new.sha256
-assert hashlib.sha256((ROOT/'tools/p0_lua_contracts.json').read_bytes()).hexdigest()==p0_review['contract_file_sha256']
+assert text_sha256(ROOT/'tools/p0_lua_contracts.json')==p0_review['contract_file_sha256']
 for c in p0['entries']+p0['witnesses']:
     assert old.read(c['start'],len(c['bytes'])//2)==bytes.fromhex(c['bytes'])
     if c['rva'] not in contracts:contracts[c['rva']]=c

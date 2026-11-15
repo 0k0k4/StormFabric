@@ -10,7 +10,7 @@ import json
 import struct
 from pathlib import Path
 
-from compare_newer_offline import PE, ROOT, compare
+from compare_newer_offline import PE, ROOT, compare, reference_exe, newer_exe
 
 
 def relative(pe, operand, end):
@@ -47,8 +47,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
-    old = PE(ROOT / 'Stormworks/stormworks64.exe')
-    new = PE(Path(sys.argv[1] if len(sys.argv) > 1 else os.environ.get('STORMWORKS_NEWER_EXE', r'..\Stormworks_Newer\stormworks64.exe')))
+    old = PE(reference_exe())
+    new = PE(newer_exe())
     assert old.sha256 == '55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3'
     assert new.sha256 == 'f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699'
     path = Path(__file__).with_name('discovery_contracts.json')
@@ -144,7 +144,7 @@ def main():
     assert a == bytes.fromhex('4c8db2500e0000') and b == bytes.fromhex('4c8db2680e0000')
     report = {
         'evidence_kind': 'Offline PE bytes + retained Ghidra contracts/traces, not REA evidence or runtime observation',
-        'reproduce': 'python -B StormworksModLoader/tools/review_newer_video.py --output StormworksModLoader/tools/newer_video_bindings.json',
+        'reproduce': 'python -B tools/review_newer_video.py --output tools/newer_video_bindings.json',
         'sources': [{'path': p.path, 'sha256': p.sha256} for p in (old, new)],
         'contracts_sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
         'bindings': {hex(k): hex(v) for k, v in mappings},

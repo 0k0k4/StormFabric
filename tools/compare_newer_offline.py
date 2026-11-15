@@ -8,10 +8,31 @@ not instruction decoding; candidate calls require independent corroboration.
 import bisect
 import hashlib
 import json
+import os
 import struct
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+# Repository root. The two hash-pinned executables are located through environment
+# variables, falling back to the historical workspace layout next to the repository.
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def reference_exe():
+    """Reference build (v1.15.18, SHA-256 55914301...)."""
+    return Path(os.environ.get('STORMWORKS_REFERENCE_EXE', ROOT.parent / 'Stormworks' / 'stormworks64.exe'))
+
+
+def newer_exe():
+    """Newer build (v1.15.23, SHA-256 f9206d85...): first argument, then STORMWORKS_NEWER_EXE."""
+    if len(sys.argv) > 1 and not sys.argv[1].startswith('-'):
+        return Path(sys.argv[1])
+    return Path(os.environ.get('STORMWORKS_NEWER_EXE', ROOT.parent / 'Stormworks_Newer' / 'stormworks64.exe'))
+
+
+def text_sha256(path):
+    """SHA-256 of a text file with LF line endings, independent of the git checkout."""
+    return hashlib.sha256(Path(path).read_bytes().replace(b'\r\n', b'\n')).hexdigest()
 
 
 class PE:
@@ -123,18 +144,18 @@ def edge_target(pe, start, edge):
 
 
 def main():
-    old = PE(ROOT / 'Stormworks/stormworks64.exe')
-    new = PE(Path(sys.argv[1] if len(sys.argv) > 1 else os.environ.get('STORMWORKS_NEWER_EXE', r'..\Stormworks_Newer\stormworks64.exe')))
+    old = PE(reference_exe())
+    new = PE(newer_exe())
     assert old.sha256 == '55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3'
     assert new.sha256 == 'f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699'
-    contracts_path = ROOT / 'StormworksModLoader/tools/discovery_contracts.json'
+    contracts_path = ROOT / 'tools/discovery_contracts.json'
     data = json.loads(contracts_path.read_text())
     contracts = {e['rva']: e for e in data['entries'] + data['witnesses']}
     assert all(old.read(e['start'], len(e['bytes']) // 2) == bytes.fromhex(e['bytes'])
                for e in contracts.values())
     report = {'evidence': 'Offline file bytes and retained contracts only; no REA or runtime evidence.',
               'sources': [{'path': p.path, 'sha256': p.sha256} for p in (old, new)],
-              'contracts_sha256': hashlib.sha256(contracts_path.read_bytes()).hexdigest()}
+              'contracts_sha256': text_sha256(contracts_path)}
     call = contracts[0x74a538]
     call_start = 0x74adf8 - (call['rva'] - call['start'])
     target = edge_target(new, call_start, call['refs'][0])

@@ -16,8 +16,22 @@
       ]
     },
     {
+      "rva": 622224,
+      "name": "native_97e90",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
       "rva": 622672,
       "name": "native_98050",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 622896,
+      "name": "native_98130",
       "groups": [
         "lua"
       ]
@@ -32,6 +46,13 @@
     {
       "rva": 623568,
       "name": "native_983d0",
+      "groups": [
+        "lua"
+      ]
+    },
+    {
+      "rva": 665328,
+      "name": "native_a26f0",
       "groups": [
         "lua"
       ]

@@ -127,7 +127,9 @@ int main(int argc,char** argv) {
     }
     assert(result.validImage && result.reviewedBuild);
     for(uint32_t group : {1u,2u,16u,32u,64u,128u,256u,512u})assert(result.GroupReady(group));
-    for(uint32_t key : {0x366010u,0x366100u,0x20da70u,0x365b80u,0x316770u})
+    // Video target (the former CustomDisplay keys, and the callee 0x20da70 they promoted
+    // to a primary target, were removed with the mod; 0x20da70 stays a checked witness).
+    for(uint32_t key : {0x366010u})
         assert(result.Address(key)==key);
     if(argc<=2)assert(result.GroupReady(4) && result.GroupReady(8));
     assert(result.Address(0xb88818)==0xb88818);
@@ -157,13 +159,13 @@ int main(int argc,char** argv) {
     for(const auto& s:wrongCall.symbols)if(s.key==0x74a538)
         assert(s.reason.find("expected resolved")!=std::string::npos);
     memcpy(image.data()+0x74a539,&oldDisplacement,4);
-    // Additional monitor slots are certified through RTTI + full function bodies;
-    // a patched release slot must never fall back to the reference address.
-    const uint32_t releaseSlot=0xb70ea0+90*8;
+    // Monitor slots are certified through RTTI + full function bodies; a patched
+    // slot must never fall back to the reference address.
+    const uint32_t releaseSlot=0xb70ea0;
     memcpy(&original,image.data()+releaseSlot,8);
     memcpy(image.data()+releaseSlot,&external,8);
     auto badRelease=Discover(image.data(),image.size());
-    assert(!badRelease.GroupReady(64) && !badRelease.Address(0xb70ea0));
+    assert(!badRelease.GroupReady(32) && !badRelease.Address(0xb70ea0));
     memcpy(image.data()+releaseSlot,&original,8);
     // The request CALL's operand is masked, but its full callee still has to
     // match. Redirecting it to an unrelated executable function is rejected.
@@ -172,15 +174,16 @@ int main(int argc,char** argv) {
     wrongDisplacement=0x244540-(targetCallOperand+4);
     memcpy(image.data()+targetCallOperand,&wrongDisplacement,4);
     auto badRequest=Discover(image.data(),image.size());
-    assert(!badRequest.GroupReady(64) && !badRequest.Address(0x366010));
+    assert(!badRequest.GroupReady(32) && !badRequest.Address(0x366010));
     memcpy(image.data()+targetCallOperand,&oldDisplacement,4);
     // Field offsets are NOT wildcarded address operands. A changed logical
     // dimension field is a different layout, even on otherwise identical code.
     const uint32_t widthField=0x366010+134;
     const uint8_t savedField=image[widthField];image[widthField]^=1;
     auto badField=Discover(image.data(),image.size());
-    assert(!badField.GroupReady(64) && !badField.Address(0x366010));
+    assert(!badField.GroupReady(32) && !badField.Address(0x366010));
     image[widthField]=savedField;
+    nt->FileHeader.TimeDateStamp^=1; // undo the unknown-build simulation before comparing
     assert(image==snapshot);
     const auto& importDir=nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
     auto* imports=reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(image.data()+importDir.VirtualAddress);

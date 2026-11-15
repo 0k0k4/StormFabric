@@ -203,7 +203,9 @@ tests\run_tests.bat
 
 - Loader : `build/iphlpapi.dll`.
 - Exemples : `build/examples/`.
-- Tests : `build/tests/` ; **13 suites C++** et vérifications de compilation C.
+- Tests : `build/tests/` ; **16 suites C++**, vérifications de compilation C et tests Python. Les suites
+  qui lisent les vrais exécutables ont besoin de leurs chemins : `set STORMWORKS_EXE=<stormworks64.exe v1.15.18>`
+  et `set STORMWORKS_NEWER_EXE=<stormworks64.exe v1.15.23>` (sinon elles sont sautées avec un message).
 
 ## Documentation et architecture
 

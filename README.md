@@ -198,7 +198,9 @@ tests\run_tests.bat
 
 - **Loader output**: `build/iphlpapi.dll`
 - **Example mods**: `build/examples/`
-- **Unit test suite**: `build/tests/` (13 C++ suites, C compilation tests)
+- **Unit test suite**: `build/tests/` (16 C++ suites, C compilation tests, Python tests). The suites that
+  read the real executables need their paths: `set STORMWORKS_EXE=<v1.15.18 stormworks64.exe>` and
+  `set STORMWORKS_NEWER_EXE=<v1.15.23 stormworks64.exe>` (skipped with a message otherwise).
 
 The offline unit test suite uses mocked backends and does not require launching the game. Tests that verify executable profiles against `stormworks64.exe` will run if the game executable path is provided, or gracefully skip if unavailable.
 

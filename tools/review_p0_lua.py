@@ -3,14 +3,14 @@ import hashlib
 import json
 from pathlib import Path
 
-from compare_newer_offline import PE, ROOT
+from compare_newer_offline import PE, reference_exe, newer_exe, text_sha256
 from review_newer_lua import OLD_HASH, NEW_HASH, matches
 
 
 def main():
     folder = Path(__file__).parent
-    old = PE(ROOT / 'Stormworks/stormworks64.exe')
-    new = PE(Path(sys.argv[1] if len(sys.argv) > 1 else os.environ.get('STORMWORKS_NEWER_EXE', r'..\Stormworks_Newer\stormworks64.exe')))
+    old = PE(reference_exe())
+    new = PE(newer_exe())
     assert old.sha256 == OLD_HASH and new.sha256 == NEW_HASH
     contracts_path = folder / 'p0_lua_contracts.json'
     contracts = json.loads(contracts_path.read_text())
@@ -19,7 +19,7 @@ def main():
         'evidence_kind': 'Retained read-only Ghidra full instruction bodies + offline PE byte match; no runtime evidence',
         'reference_sha256': old.sha256, 'newer_sha256': new.sha256,
         'contract_file': 'tools/p0_lua_contracts.json',
-        'contract_file_sha256': hashlib.sha256(contracts_path.read_bytes()).hexdigest(),
+        'contract_file_sha256': text_sha256(contracts_path),
         'bindings': [],
         'limitations': ['No REA provider; direct retained Ghidra export only.',
                         'No game launch, attach, install or runtime proof.',
