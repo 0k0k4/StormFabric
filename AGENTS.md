@@ -201,8 +201,14 @@ Tick and event rules:
 - Lua stack handling: always `checkStack` before pushing; `call` consumes the function and
   its arguments; a Lua error comes back as `SW_LUA_CALL_FAILED` (never an exception). Never
   call `raiseError` (unsupported).
-- Reading through `server.*`: `call(..., nargs, 1, ...)`, then `copyString` /
-  `argNumber(L, -1, 0)` on the result, then `pop`. Example: `examples/addon_lua_demo` (`HostName`).
+- Reading through `server.*`: `call(..., nargs, 1, ...)`, then read the result and `pop`.
+  A string: `extras->copyString(..., -1, ...)`. A number or boolean:
+  `argNumber(L, getTop(L), 0)` / `argBool(L, getTop(L), false)`. Example:
+  `examples/addon_lua_demo` (`HostName`).
+- **Index sign**: `argNumber`, `argBool` and `argString` accept **positive indices only**; a
+  negative index silently returns the default. The `extras` functions (`getType`,
+  `copyString`, `getField`, `setField`, `pop`…) accept both. To read the top of the stack
+  with an `arg*` function, use `getTop(L)`.
 
 ## 7. Library for addon scripts
 
