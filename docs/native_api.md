@@ -117,6 +117,8 @@ Exemple compilable : `examples/native_api_demo`, désactivé par défaut, enregi
 vérifier `structSize`) installe une bibliothèque dans les VM des addons/missions au lieu
 des microcontrôleurs. Build récent uniquement, signalé par `SW_CAP_LUA_ADDON`.
 Contrat, noms réservés, événements et preuves : [`addon_lua.md`](addon_lua.md).
+Depuis un callback, `lua->extras->getGlobal` et `lua->extras->call` permettent au mod
+d'appeler lui-même une fonction Lua du jeu (par exemple `server.announce`).
 
 ### Déchargement et limites
 

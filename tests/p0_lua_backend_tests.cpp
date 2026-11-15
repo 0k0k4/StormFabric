@@ -13,6 +13,7 @@ bool ValidateEngineBinding(uint8_t*, uint32_t) { return false; }
 bool ValidateLuaProfile(uint8_t*) { return false; }
 bool ValidateQolEditorProfile(uint8_t*) { return false; }
 bool ResolveAddonLuaProfile(uint8_t*, AddonLuaProfile*) { return false; }
+void* ResolveLuaPcallk(uint8_t*) { return nullptr; }
 std::vector<std::pair<SwEventType,SwHandle>> lifecycleEvents;
 void QueueModLuaEvent(SwEventType type,SwHandle id) {lifecycleEvents.emplace_back(type,id);}
 }
@@ -222,9 +223,82 @@ int BadResults(void*, void*) { return INT_MAX; }
 int Throws(void*, void*) { throw 123; }
 // Natives used only by library installation: push _G, and turn the pushed
 // light-userdata token into a C closure value.
+uintptr_t globalObject = 0;
 void FakeRawGeti(uintptr_t lua, int index, long long n) {
     assert(lua == L && index == kRegistryIdx && n == 2);
-    PushValue({Object(0x38), 0x45u, 0});
+    if (!globalObject) globalObject = Object(0x38);
+    PushValue({globalObject, 0x45u, 0});
+}
+// Fake lua_pcallk: the "function" value selects success (1) or a raised error (2).
+int pcallCount = 0;
+int FakePcall(uintptr_t lua, int nargs, int nresults, int errfunc, intptr_t ctx, void* k) {
+    assert(lua == L && errfunc == 0 && ctx == 0 && k == nullptr && nargs >= 0 && nresults >= 0);
+    ++pcallCount;
+    auto* function = reinterpret_cast<Value*>(*(uintptr_t*)(L + 0x10) - static_cast<uintptr_t>(nargs + 1) * 16);
+    assert((function->tag & 0xf) == 6);
+    const uint64_t mode = function->bits;
+    *(uintptr_t*)(L + 0x10) = reinterpret_cast<uintptr_t>(function);
+    if (mode == 2) { FakeString(L, "boom: script error", 18); return 2; }
+    for (int i = 0; i < nresults; ++i) PushValue({static_cast<uint64_t>(100 + i), 0x13u, 0});
+    return 0;
+}
+int CallChecks(void* lua, void*) {
+    assert(api->structSize == sizeof(SwLuaExtrasApi) && ApiGetTop(lua) == 0);
+    SwLuaType type = SW_LUA_TYPE_NONE;
+    // ---- getGlobal ----
+    FakeRawGeti(L, kRegistryIdx, 2); *(uintptr_t*)(L + 0x10) -= 16; // materialise _G
+    fields[globalObject]["server"] = {Object(0x38), 0x45u, 0};
+    assert(api->getGlobal(&otherOwner, lua, "server") == SW_LUA_INVALID_CONTEXT);
+    assert(api->getGlobal(&owner, lua, nullptr) == SW_LUA_INVALID_ARGUMENT);
+    assert(api->getGlobal(&owner, lua, "") == SW_LUA_INVALID_ARGUMENT && ApiGetTop(lua) == 0);
+    assert(api->getGlobal(&owner, lua, "server") == SW_LUA_OK && ApiGetTop(lua) == 1);
+    assert(api->getType(&owner, lua, -1, &type) == SW_LUA_OK && type == SW_LUA_TYPE_TABLE);
+    assert(*reinterpret_cast<uintptr_t*>(FakeIndex(L, 1)) != globalObject); // _G itself was removed
+    assert(api->getGlobal(&owner, lua, "missing") == SW_LUA_OK && ApiGetTop(lua) == 2);
+    assert(api->getType(&owner, lua, -1, &type) == SW_LUA_OK && type == SW_LUA_TYPE_NIL);
+    *(uintptr_t*)(globalObject + 0x28) = 1; // a metatable on _G could run script code
+    assert(api->getGlobal(&owner, lua, "server") == SW_LUA_UNSUPPORTED && ApiGetTop(lua) == 2);
+    *(uintptr_t*)(globalObject + 0x28) = 0;
+    failNative = true;
+    assert(api->getGlobal(&owner, lua, "server") == SW_LUA_ENGINE_ERROR && ApiGetTop(lua) == 2);
+    failNative = false;
+    assert(api->pop(&owner, lua, 2) == SW_LUA_OK);
+    // ---- call ----
+    char error[32] = "untouched";
+    assert(api->call(&owner, lua, 0, 0, nullptr, 0) == SW_LUA_OUT_OF_RANGE); // nothing to call
+    assert(api->call(&otherOwner, lua, 0, 0, nullptr, 0) == SW_LUA_INVALID_CONTEXT);
+    assert(api->pushInteger(&owner, lua, 5) == SW_LUA_OK);
+    assert(api->call(&owner, lua, 0, 0, error, sizeof(error)) == SW_LUA_TYPE_MISMATCH && ApiGetTop(lua) == 1);
+    assert(api->call(&owner, lua, -1, 0, nullptr, 0) == SW_LUA_INVALID_ARGUMENT);
+    assert(api->call(&owner, lua, 0, 256, nullptr, 0) == SW_LUA_INVALID_ARGUMENT);
+    assert(api->call(&owner, lua, 256, 0, nullptr, 0) == SW_LUA_INVALID_ARGUMENT);
+    assert(api->call(&owner, lua, 0, 0, nullptr, 4) == SW_LUA_INVALID_ARGUMENT);
+    assert(api->pop(&owner, lua, 1) == SW_LUA_OK && pcallCount == 0);
+    PushValue({1, 0x66u, 0});
+    auto savedCall = g_pcallk; g_pcallk = nullptr;
+    assert(api->call(&owner, lua, 0, 0, nullptr, 0) == SW_LUA_UNSUPPORTED && ApiGetTop(lua) == 1);
+    g_pcallk = savedCall;
+    stackAvailable = false;
+    assert(api->call(&owner, lua, 0, 1, nullptr, 0) == SW_LUA_STACK_LIMIT && ApiGetTop(lua) == 1 && pcallCount == 0);
+    stackAvailable = true;
+    assert(api->pushInteger(&owner, lua, 1) == SW_LUA_OK && api->pushInteger(&owner, lua, 2) == SW_LUA_OK);
+    assert(api->call(&owner, lua, 3, 0, nullptr, 0) == SW_LUA_OUT_OF_RANGE); // more arguments than values
+    assert(api->call(&owner, lua, 2, 3, error, sizeof(error)) == SW_LUA_OK && pcallCount == 1);
+    assert(ApiGetTop(lua) == 3 && error[0] == 0);
+    for (int i = 0; i < 3; ++i) assert(*reinterpret_cast<int64_t*>(FakeIndex(L, i + 1)) == 100 + i);
+    assert(api->pushNil(&owner, lua) == SW_LUA_OK); // the callback context survives the call
+    assert(api->pop(&owner, lua, 4) == SW_LUA_OK);
+    // A raised error comes back as a status: nothing is left on the stack.
+    PushValue({2, 0x66u, 0});
+    assert(api->pushNil(&owner, lua) == SW_LUA_OK);
+    assert(api->call(&owner, lua, 1, 5, error, sizeof(error)) == SW_LUA_CALL_FAILED && ApiGetTop(lua) == 0);
+    assert(!strcmp(error, "boom: script error"));
+    PushValue({2, 0x66u, 0});
+    char tiny[5] = "zzzz";
+    assert(api->call(&owner, lua, 0, 0, tiny, sizeof(tiny)) == SW_LUA_CALL_FAILED && !strcmp(tiny, "boom"));
+    PushValue({2, 0x66u, 0});
+    assert(api->call(&owner, lua, 0, 0, nullptr, 0) == SW_LUA_CALL_FAILED && ApiGetTop(lua) == 0);
+    return 0;
 }
 void FakeClosure(uintptr_t lua, void* fn, int upvalues) {
     assert(lua == L && fn && upvalues == 1);
@@ -282,6 +356,12 @@ int main() {
     assert(!ApiCheckStack(reinterpret_cast<void*>(1), 1));
     assert(Dispatch(Token(&Exercise)) == 0 && g_luaCallbackFrame == nullptr);
     assert(api->pushNil(&owner, state) == SW_LUA_INVALID_CONTEXT);
+    ResetState();
+    g_rawgeti = &FakeRawGeti; g_pcallk = &FakePcall;
+    assert(Dispatch(Token(&CallChecks)) == 0 && g_luaCallbackFrame == nullptr && pcallCount == 4);
+    char outside[8] = "keep";
+    assert(api->call(&owner, state, 0, 0, outside, sizeof(outside)) == SW_LUA_INVALID_CONTEXT && !strcmp(outside, "keep"));
+    assert(api->getGlobal(&owner, state, "server") == SW_LUA_INVALID_CONTEXT);
     ResetState();
     auto bad = Token(&BadResults);
     assert(Dispatch(bad) == 0 && !bad->callback && ApiGetTop(state) == 0);
@@ -373,5 +453,6 @@ int main() {
     swml::ReleaseNativeLuaOwner(&owner);
     assert(!pingToken->owner && !pingToken->callback);
     puts("PASS: addon script VMs; scoped libraries, reserved names, QoL refusal, reload generations, lifecycle events");
+    puts("PASS: getGlobal and protected call; context, bounds, types, raised error as status, truncated message");
     puts("PASS: real Lua wrappers; fake stack/string/table natives; owner/thread/VM lifetime; bounds/types; relocation; protected longjmp; inert unload tokens");
 }

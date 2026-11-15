@@ -17,4 +17,7 @@ bool ValidateQolEditorProfile(uint8_t* base);
 struct AddonLuaProfile { void** vtable; void* close; void* init; };
 bool ResolveAddonLuaProfile(uint8_t* base, AddonLuaProfile* out);
 bool ValidateAddonLuaProfile(uint8_t* base);
+// Optional protected call: lua_pcallk(L, nargs, nresults, errfunc, ctx, k).
+// Newer reviewed build only; NULL when the complete retained body differs.
+void* ResolveLuaPcallk(uint8_t* base);
 }

@@ -126,6 +126,7 @@ using fn_lua_hook_t = void (*)(uintptr_t L, uintptr_t ar, uintptr_t p3, uintptr_
 using fn_pushlstring_t = const char* (*)(uintptr_t L, const char*, size_t);
 using fn_getfield_t = int (*)(uintptr_t L, uintptr_t tblTv, const char* key);
 using fn_rawrunprotected_t = int (*)(uintptr_t L, void (*)(uintptr_t, void*), void*);
+using fn_pcallk_t = int (*)(uintptr_t L, int nargs, int nresults, int errfunc, intptr_t ctx, void* k);
 
 // Primitives de rendu d'écran (screen.*)
 using fn_draw_line_t = void (*)(void* batch, float* p1, float* p2, uint32_t* rgba);
@@ -162,6 +163,7 @@ fn_lua_hook_t     g_origTimeoutHook = nullptr;
 fn_pushlstring_t g_pushlstring = nullptr;
 fn_getfield_t g_getfield = nullptr;
 fn_rawrunprotected_t g_rawrunprotected = nullptr;
+fn_pcallk_t g_pcallk = nullptr; // optional: newer reviewed build only
 
 fn_draw_line_t    g_drawLine = nullptr;
 fn_draw_rect_t    g_drawRect = nullptr;
@@ -1399,6 +1401,9 @@ bool swml::EnableNativeLua(const SwModHost* host) {
     }
     g_installed = true;
 
+    // Optional protected call (extras->call): no fallback when the body differs.
+    g_pcallk = reinterpret_cast<fn_pcallk_t>(swml::ResolveLuaPcallk(g_base));
+
     // Optional addon/mission script VMs: certified for the newer reviewed build only.
     // A rejected profile or a failed transaction leaves the core service untouched.
     swml::AddonLuaProfile addon{};
@@ -1665,7 +1670,7 @@ SwLuaStatus StackIndex(void* state, int index, int* absolute) {
 
 // Only this POD-only leaf is inside the engine's setjmp scope. No plugin frames,
 // C++ locks, strings, or destructors can be skipped by an allocation-error longjmp.
-enum class LuaOperation { PushString, CreateTable, GetField, SetField };
+enum class LuaOperation { PushString, CreateTable, GetField, SetField, GetGlobal };
 struct LuaOperationData {
     LuaOperation operation;
     int index;
@@ -1694,6 +1699,22 @@ void LuaOperationLeaf(uintptr_t L, void* opaque) {
     case LuaOperation::SetField:
         g_setfield(L, g_index2addr(L, data->index), data->bytes);
         break;
+    case LuaOperation::GetGlobal: {
+        g_rawgeti(L, kRegistryIdx, 2); // push _G
+        uintptr_t globals = *(uintptr_t*)(L + 0x10) - 16;
+        // A metatable on _G could run arbitrary script code: report it, push nil.
+        if (*(uint32_t*)(globals + 8) != 0x45 || *(uintptr_t*)(*(uintptr_t*)globals + 0x28)) {
+            *(uint64_t*)globals = 0; *(uint32_t*)(globals + 8) = 0;
+            data->index = -1;
+            break;
+        }
+        g_getfield(L, globals, data->bytes);
+        // Replace _G with the value just pushed above it. The stack cannot move here.
+        uintptr_t top = *(uintptr_t*)(L + 0x10);
+        memcpy(reinterpret_cast<void*>(top - 32), reinterpret_cast<void*>(top - 16), 16);
+        *(uintptr_t*)(L + 0x10) = top - 16;
+        break;
+    }
     }
 }
 SwLuaStatus RunLuaOperation(void* state, LuaOperationData* data, int slots) {
@@ -1817,9 +1838,65 @@ SwLuaStatus ExtrasCopyString(const SwModHost* owner, void* state, int index,
     // NULL/0 is an explicit length query, not a truncating copy.
     return capacity && capacity <= n ? SW_LUA_BUFFER_TOO_SMALL : SW_LUA_OK;
 }
+SwLuaStatus ExtrasGetGlobal(const SwModHost* owner, void* state, const char* name) {
+    auto status = ExtrasContext(owner, state);
+    if (status != SW_LUA_OK) return status;
+    if (!name) return SW_LUA_INVALID_ARGUMENT;
+    char copy[256];
+    size_t n = 0;
+    for (; n < sizeof(copy); ++n) { copy[n] = name[n]; if (!copy[n]) break; }
+    if (!n || n == sizeof(copy)) return SW_LUA_INVALID_ARGUMENT;
+    if (!g_rawgeti) return SW_LUA_UNSUPPORTED;
+    LuaOperationData data{LuaOperation::GetGlobal, 0, copy, n, 0};
+    status = RunLuaOperation(state, &data, 2);
+    if (status == SW_LUA_OK && data.index == -1) {
+        *(uintptr_t*)(reinterpret_cast<uintptr_t>(state) + 0x10) -= 16; // drop the placeholder nil
+        return SW_LUA_UNSUPPORTED;
+    }
+    return status;
+}
+// lua_pcallk owns its setjmp scope: an error raised by the callee unwinds only
+// engine frames above this call and comes back as a status. No plugin frame, lock
+// or C++ destructor sits between the raise and that scope.
+SwLuaStatus ExtrasCall(const SwModHost* owner, void* state, int argumentCount, int resultCount,
+                       char* errorOut, size_t errorCapacity) {
+    auto status = ExtrasContext(owner, state);
+    if (status != SW_LUA_OK) return status;
+    if (errorOut && errorCapacity) errorOut[0] = 0;
+    if (argumentCount < 0 || argumentCount > 255 || resultCount < 0 || resultCount > 255 ||
+        (!errorOut && errorCapacity)) return SW_LUA_INVALID_ARGUMENT;
+    if (!g_pcallk) return SW_LUA_UNSUPPORTED;
+    uintptr_t L = reinterpret_cast<uintptr_t>(state);
+    const int top = LuaGetTop(L);
+    if (top < argumentCount + 1) return SW_LUA_OUT_OF_RANGE;
+    const int functionIndex = top - argumentCount;
+    if ((*(uint32_t*)(g_index2addr(L, functionIndex) + 8) & 0xf) != 6) return SW_LUA_TYPE_MISMATCH;
+    if (!g_checkstack(L, resultCount + 1)) return SW_LUA_STACK_LIMIT;
+    // Keep the dispatcher's frame: the callee may reenter another plugin callback.
+    LuaCallbackFrame* frame = g_luaCallbackFrame;
+    const int failed = g_pcallk(L, argumentCount, resultCount, 0, 0, nullptr);
+    g_luaCallbackFrame = frame;
+    if (!failed) return SW_LUA_OK;
+    // The function and its arguments are gone; exactly one error object is on top.
+    if (LuaGetTop(L) >= functionIndex) {
+        if (errorOut && errorCapacity) {
+            uintptr_t tv = g_index2addr(L, functionIndex);
+            uint32_t tag = *(uint32_t*)(tv + 8);
+            if ((tag & 0xf) == 4) {
+                uintptr_t str = *(uintptr_t*)tv;
+                size_t n = (tag & 0x3f) == 4 ? *(uint8_t*)(str + 0xb) : *(size_t*)(str + 0x10);
+                n = (std::min)(n, errorCapacity - 1);
+                memcpy(errorOut, reinterpret_cast<const void*>(str + 0x18), n);
+                errorOut[n] = 0;
+            }
+        }
+        *(uintptr_t*)(L + 0x10) -= static_cast<uintptr_t>(LuaGetTop(L) - functionIndex + 1) * 16;
+    }
+    return SW_LUA_CALL_FAILED;
+}
 const SwLuaExtrasApi g_luaExtras = {sizeof(SwLuaExtrasApi), &ExtrasPushString, &ExtrasPushNil,
     &ExtrasPushInteger, &ExtrasCreateTable, &ExtrasGetField, &ExtrasSetField, &ExtrasGetType,
-    &ExtrasPop, &ExtrasRaiseError, &ExtrasCopyString};
+    &ExtrasPop, &ExtrasRaiseError, &ExtrasCopyString, &ExtrasGetGlobal, &ExtrasCall};
 
 struct QolCallData { int (*fn)(uintptr_t); int result; };
 void QolCallLeaf(uintptr_t L, void* data) {

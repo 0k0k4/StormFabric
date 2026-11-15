@@ -66,10 +66,47 @@ complet : [`examples/addon_lua_demo`](../examples/addon_lua_demo).
   `checkStack`, `push*` et `lua->extras`. Les fonctions `lua->qol` et l'API vidéo
   sont propres aux microcontrôleurs : appelées depuis une VM addon, elles ne font
   rien et renvoient zéro résultat.
-- **Un callback natif ne peut pas appeler de fonction Lua** (pas de `pcall`
-  exposé). C'est le script qui appelle `server.*` et transmet les valeurs au mod.
+- Un callback natif peut appeler lui-même les fonctions du jeu avec
+  `extras->getGlobal` et `extras->call` (voir plus bas). Il reste lié à un appel
+  venu du script : hors callback, ces fonctions renvoient `INVALID_CONTEXT`.
 - Déchargement : comme pour les microcontrôleurs, les closures pointent vers le
   loader ; après le déchargement du mod elles renvoient zéro résultat.
+
+## Appeler le jeu depuis le C++
+
+Deux membres ajoutés en fin de `SwLuaExtrasApi` (vérifier `structSize`) :
+
+- `getGlobal(owner, L, name)` pousse la globale `name` (nil si absente). Refusé
+  (`SW_LUA_UNSUPPORTED`) si `_G` porte une métatable.
+- `call(owner, L, nargs, nresults, errorOut, errorCapacity)` est un appel protégé.
+  La pile doit contenir la fonction puis ses `nargs` arguments ; tout est consommé.
+  `SW_LUA_OK` laisse exactement `nresults` résultats. `SW_LUA_CALL_FAILED` ne laisse
+  rien et copie le message d'erreur s'il s'agit d'une chaîne. Les deux compteurs
+  vont de 0 à 255. Une erreur Lua ne traverse jamais le code du mod.
+
+```cpp
+// Dans un callback : server.announce("Mon mod", "bonjour")
+const SwLuaExtrasApi* x = lua->extras;
+char error[256];
+if (lua->checkStack(L, 6) && x->getGlobal(host, L, "server") == SW_LUA_OK) {
+    if (x->getField(host, L, -1, "announce") == SW_LUA_OK) {
+        x->pushString(host, L, "Mon mod", 7);
+        x->pushString(host, L, "bonjour", 7);
+        if (x->call(host, L, 2, 0, error, sizeof(error)) != SW_LUA_OK) host->log(host->modId, error);
+    }
+    x->pop(host, L, 1); // server
+}
+```
+
+`call` s'appuie sur `lua_pcallk` (`0x989a0`, 516 octets avec ses blocs de fin),
+identifié comme la cible de l'appel fait par le `pcall` de la bibliothèque de base
+et vérifié octet par octet au démarrage. Build récent uniquement : ailleurs, `call`
+renvoie `SW_LUA_UNSUPPORTED`. Il fonctionne aussi dans une VM de microcontrôleur.
+
+Vérifié en jeu le 2026-11-15 : depuis la commande `?sf`, le mod de démo a appelé
+`server.announce` et lu le résultat de `server.getPlayerName(0)`. Non vérifié en
+jeu : le chemin d'erreur (fonction Lua qui lève une erreur), couvert seulement par
+les tests hors jeu.
 
 ## Événements
 

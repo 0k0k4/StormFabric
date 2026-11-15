@@ -113,6 +113,17 @@ int main(int argc, char** argv) {
         }
         assert(swml::ValidateAddonLuaProfile(image.data()));
     }
+    // Protected call: newer build only, complete lua_pcallk body including its tail chunks.
+    auto* pcallk = static_cast<uint8_t*>(swml::ResolveLuaPcallk(image.data()));
+    assert((pcallk != nullptr) == newerBuild && !swml::ResolveLuaPcallk(nullptr));
+    if (pcallk) {
+        for (size_t offset : {size_t(0), size_t(309), size_t(515)}) {
+            pcallk[offset] ^= 1;
+            assert(!swml::ResolveLuaPcallk(image.data()) && swml::ValidateLuaProfile(image.data()));
+            pcallk[offset] ^= 1;
+        }
+        assert(swml::ResolveLuaPcallk(image.data()) == pcallk);
+    }
     for (uint32_t key : {0x74a538,0x6d87d0,0x74aa50,0x688ec0,0x367c80,0xb70ea0}) {
         size_t rva = swml::EngineRva(image.data(),key); assert(rva);
         image[rva] ^= 1;
@@ -153,6 +164,7 @@ int main(int argc, char** argv) {
     assert(!swml::ValidateLuaProfile(image.data()));
     assert(!swml::ValidateLuaProfile(nullptr));
     assert(!swml::ValidateAddonLuaProfile(image.data())); // wrong build identity
+    assert(!swml::ResolveLuaPcallk(image.data()));
     assert(!swml::ValidateVideoProfile(image.data()));
     assert(!swml::ValidateVideoProfile(nullptr));
     assert(!sw::ValidateIngameNotificationProfile(image.data()));
