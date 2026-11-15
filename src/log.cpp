@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -20,13 +21,35 @@ CRITICAL_SECTION g_cs;
 bool g_csInit = false;
 
 ModLoaderConfig g_cfg;
-HANDLE g_conOut = INVALID_HANDLE_VALUE;
-bool g_consoleAllocated = false;
 discovery_progress::State g_discovery;
-bool g_progressVisible = false;
 ULONGLONG g_progressLastDrawTick = 0;
 
-// All progress/console helpers are called with g_cs held; none call Log*.
+// ---- Debug terminal ----------------------------------------------------------------------
+// A console write can block for as long as the user keeps a selection in the window
+// (QuickEdit, Edit > Mark). Writing it under g_cs froze the game: the UI thread waits on
+// g_cs for notifications. So every console operation is queued (under g_conCs only, never
+// blocking) and performed by a single writer thread. Lock order: g_cs, then g_conCs; the
+// writer thread never takes g_cs. The state below the queue belongs to the writer thread.
+struct ConsoleOp {
+    enum Kind { Open, Entry, Banner, Progress, Close } kind = Entry;
+    LogEntry entry;
+    discovery_progress::State progress;
+    bool draw = false;
+};
+constexpr size_t kMaxConsoleOps = 4096;
+CRITICAL_SECTION g_conCs;
+CONDITION_VARIABLE g_conCv;
+std::deque<ConsoleOp> g_conOps;
+size_t g_conDropped = 0;
+bool g_conThreadStarted = false;
+std::atomic<bool> g_conOpen{false}; // terminal requested open (what the UI shows)
+
+HANDLE g_conOut = INVALID_HANDLE_VALUE;      // writer thread only
+bool g_consoleAllocated = false;             // writer thread only
+bool g_progressVisible = false;              // writer thread only
+discovery_progress::State g_conProgress;     // writer thread copy of g_discovery
+
+// Console helpers: writer thread only; none call Log*.
 void ClearProgressLine() {
     if (!g_progressVisible || g_conOut == INVALID_HANDLE_VALUE) return;
     CONSOLE_SCREEN_BUFFER_INFO info;
@@ -40,21 +63,21 @@ void ClearProgressLine() {
 }
 
 void DrawProgressLine() {
-    if (!g_discovery.valid || g_conOut == INVALID_HANDLE_VALUE) return;
+    if (!g_conProgress.valid || g_conOut == INVALID_HANDLE_VALUE) return;
     CONSOLE_SCREEN_BUFFER_INFO info;
     if (!GetConsoleScreenBufferInfo(g_conOut, &info) || info.dwSize.X < 2) return;
     // Reserve the last column to avoid automatic wrapping/scrolling.
-    std::string line = g_discovery.Line();
+    std::string line = g_conProgress.Line();
     SHORT width = (std::min)(info.dwSize.X,
         static_cast<SHORT>(info.srWindow.Right - info.srWindow.Left + 1));
     if (width < 2) return;
     line.resize((std::min)(line.size(), static_cast<size_t>(width - 1)));
-    SetConsoleTextAttribute(g_conOut, g_discovery.failed
+    SetConsoleTextAttribute(g_conOut, g_conProgress.failed
         ? FOREGROUND_RED | FOREGROUND_INTENSITY
         : FOREGROUND_GREEN | FOREGROUND_INTENSITY);
     DWORD written = 0;
     WriteFile(g_conOut, line.data(), (DWORD)line.size(), &written, nullptr);
-    if (g_discovery.finished) {
+    if (g_conProgress.finished) {
         WriteFile(g_conOut, "\r\n", 2, &written, nullptr);
     } else {
         g_progressVisible = true;
@@ -196,10 +219,140 @@ void WriteEntryToConsoleRaw(const LogEntry& e) {
     WriteFile(g_conOut, body.data(), (DWORD)body.size(), &written, nullptr);
 }
 
-void WriteEntryToConsole(const LogEntry& e) {
-    ClearProgressLine();
-    WriteEntryToConsoleRaw(e);
-    if (g_discovery.valid && !g_discovery.finished) DrawProgressLine();
+void PrintConsoleBanner();
+
+void OpenConsoleNow() {
+    if (g_conOut != INVALID_HANDLE_VALUE) return;
+    if (AllocConsole()) g_consoleAllocated = true;
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleTitleW(L"Stormworks ModLoader - Debug & Log Terminal");
+
+    // Si user32.dll est déjà chargé et initialisé, désactive le bouton [X] de la console
+    if (HWND hwnd = GetConsoleWindow()) {
+        if (HMODULE u32 = GetModuleHandleW(L"user32.dll")) {
+            using GetSystemMenuFn = HMENU(WINAPI*)(HWND, BOOL);
+            using DeleteMenuFn = BOOL(WINAPI*)(HMENU, UINT, UINT);
+            auto getSysMenu = reinterpret_cast<GetSystemMenuFn>(GetProcAddress(u32, "GetSystemMenu"));
+            auto delMenu = reinterpret_cast<DeleteMenuFn>(GetProcAddress(u32, "DeleteMenu"));
+            if (getSysMenu && delMenu) {
+                if (HMENU hMenu = getSysMenu(hwnd, FALSE)) {
+                    delMenu(hMenu, SC_CLOSE, MF_BYCOMMAND);
+                }
+            }
+        }
+    }
+    // A click in a QuickEdit console starts a selection, which pauses all output. Only for
+    // a console we created: an inherited one belongs to the user's own terminal.
+    if (g_consoleAllocated) {
+        HANDLE in = CreateFileW(L"CONIN$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                nullptr, OPEN_EXISTING, 0, nullptr);
+        if (in != INVALID_HANDLE_VALUE) {
+            DWORD mode = 0;
+            if (GetConsoleMode(in, &mode))
+                SetConsoleMode(in, (mode | ENABLE_EXTENDED_FLAGS) & ~ENABLE_QUICK_EDIT_MODE);
+            CloseHandle(in);
+        }
+    }
+    g_conOut = CreateFileW(L"CONOUT$", GENERIC_READ | GENERIC_WRITE,
+                           FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+}
+
+void CloseConsoleNow() {
+    if (g_conOut != INVALID_HANDLE_VALUE) {
+        ClearProgressLine();
+        CloseHandle(g_conOut);
+        g_conOut = INVALID_HANDLE_VALUE;
+    }
+    if (g_consoleAllocated || GetConsoleWindow() != nullptr) {
+        FreeConsole();
+        g_consoleAllocated = false;
+    }
+}
+
+DWORD WINAPI ConsoleWriterThread(void*) {
+    for (;;) {
+        EnterCriticalSection(&g_conCs);
+        while (g_conOps.empty()) SleepConditionVariableCS(&g_conCv, &g_conCs, INFINITE);
+        ConsoleOp op = std::move(g_conOps.front());
+        g_conOps.pop_front();
+        const size_t dropped = g_conDropped;
+        g_conDropped = 0;
+        LeaveCriticalSection(&g_conCs);
+
+        if (dropped && g_conOut != INVALID_HANDLE_VALUE) {
+            ClearProgressLine();
+            char note[128];
+            const int n = snprintf(note, sizeof(note),
+                                   "[... %zu log line(s) not shown: terminal output was paused; "
+                                   "see StormworksModLoader.log ...]\r\n", dropped);
+            DWORD written = 0;
+            SetConsoleTextAttribute(g_conOut, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+            if (n > 0) WriteFile(g_conOut, note, (DWORD)n, &written, nullptr);
+        }
+        switch (op.kind) {
+            case ConsoleOp::Open:
+                OpenConsoleNow();
+                break;
+            case ConsoleOp::Entry:
+                if (g_conOut == INVALID_HANDLE_VALUE) break;
+                ClearProgressLine();
+                WriteEntryToConsoleRaw(op.entry);
+                if (g_conProgress.valid && !g_conProgress.finished) DrawProgressLine();
+                break;
+            case ConsoleOp::Banner:
+                PrintConsoleBanner();
+                break;
+            case ConsoleOp::Progress:
+                g_conProgress = std::move(op.progress);
+                ClearProgressLine();
+                if (op.draw) DrawProgressLine();
+                break;
+            case ConsoleOp::Close:
+                CloseConsoleNow();
+                break;
+        }
+    }
+}
+
+// Never blocks on the console. Safe under g_cs.
+void QueueConsole(ConsoleOp op) {
+    EnterCriticalSection(&g_conCs);
+    if (g_conOps.size() >= kMaxConsoleOps) {
+        // Drop the oldest log line; Open/Close/Progress keep the terminal consistent.
+        auto it = std::find_if(g_conOps.begin(), g_conOps.end(),
+                               [](const ConsoleOp& o) { return o.kind == ConsoleOp::Entry; });
+        if (it != g_conOps.end()) {
+            g_conOps.erase(it);
+            ++g_conDropped;
+        }
+    }
+    if (g_conOps.size() < kMaxConsoleOps || op.kind != ConsoleOp::Entry) g_conOps.push_back(std::move(op));
+    else ++g_conDropped;
+    if (!g_conThreadStarted) {
+        // Created lazily; may run from DllMain: the thread only starts once the loader
+        // lock is released and nothing here waits for it.
+        if (HANDLE t = CreateThread(nullptr, 0, &ConsoleWriterThread, nullptr, 0, nullptr)) {
+            CloseHandle(t);
+            g_conThreadStarted = true;
+        }
+    }
+    LeaveCriticalSection(&g_conCs);
+    WakeConditionVariable(&g_conCv);
+}
+
+void QueueConsoleEntry(const LogEntry& e) {
+    ConsoleOp op;
+    op.kind = ConsoleOp::Entry;
+    op.entry = e;
+    QueueConsole(std::move(op));
+}
+
+void QueueConsoleProgress(bool draw) {
+    ConsoleOp op;
+    op.kind = ConsoleOp::Progress;
+    op.progress = g_discovery;
+    op.draw = draw;
+    QueueConsole(std::move(op));
 }
 
 void PrintConsoleBanner() {
@@ -265,10 +418,8 @@ void AppendEntryLocked(LogLevel level, const char* message, bool console = true)
         }
     }
 
-    // Écriture dans le terminal de debug Windows s'il est ouvert
-    if (console && g_conOut != INVALID_HANDLE_VALUE) {
-        WriteEntryToConsole(entry);
-    }
+    // Terminal de debug Windows s'il est ouvert (file d'attente : n'attend jamais la console)
+    if (console && g_conOpen.load()) QueueConsoleEntry(entry);
 }
 
 void LogV(LogLevel level, bool infer, const char* fmt, va_list ap) {
@@ -293,6 +444,8 @@ void LogInit() {
     if (g_ready) return;
     if (!g_csInit) {
         InitializeCriticalSection(&g_cs);
+        InitializeCriticalSection(&g_conCs);
+        InitializeConditionVariable(&g_conCv);
         g_csInit = true;
     }
 
@@ -338,62 +491,39 @@ void SaveConfig() {
 }
 
 void OpenLogTerminal() {
+    if (!g_csInit) return;
     EnterCriticalSection(&g_cs);
-    if (g_conOut != INVALID_HANDLE_VALUE) {
+    if (g_conOpen.load()) {
         LeaveCriticalSection(&g_cs);
         return;
     }
-
-    if (AllocConsole()) {
-        g_consoleAllocated = true;
-    }
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleTitleW(L"Stormworks ModLoader - Debug & Log Terminal");
-
-    // Si user32.dll est déjà chargé et initialisé, désactive le bouton [X] de la console
-    if (HWND hwnd = GetConsoleWindow()) {
-        if (HMODULE u32 = GetModuleHandleW(L"user32.dll")) {
-            using GetSystemMenuFn = HMENU(WINAPI*)(HWND, BOOL);
-            using DeleteMenuFn = BOOL(WINAPI*)(HMENU, UINT, UINT);
-            auto getSysMenu = reinterpret_cast<GetSystemMenuFn>(GetProcAddress(u32, "GetSystemMenu"));
-            auto delMenu = reinterpret_cast<DeleteMenuFn>(GetProcAddress(u32, "DeleteMenu"));
-            if (getSysMenu && delMenu) {
-                if (HMENU hMenu = getSysMenu(hwnd, FALSE)) {
-                    delMenu(hMenu, SC_CLOSE, MF_BYCOMMAND);
-                }
-            }
-        }
-    }
-
-    g_conOut = CreateFileW(L"CONOUT$", GENERIC_READ | GENERIC_WRITE,
-                           FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
-    if (g_conOut != INVALID_HANDLE_VALUE) {
-        PrintConsoleBanner();
-        // Ré-affiche tout l'historique déjà accumulé depuis le lancement du processus
-        for (const LogEntry& e : g_history) {
-            WriteEntryToConsoleRaw(e);
-        }
-        if (g_discovery.valid && !g_discovery.finished) DrawProgressLine();
-    }
+    g_conOpen = true;
+    ConsoleOp open;
+    open.kind = ConsoleOp::Open;
+    QueueConsole(std::move(open));
+    ConsoleOp banner;
+    banner.kind = ConsoleOp::Banner;
+    QueueConsole(std::move(banner));
+    // Ré-affiche tout l'historique déjà accumulé depuis le lancement du processus
+    for (const LogEntry& e : g_history) QueueConsoleEntry(e);
+    QueueConsoleProgress(g_discovery.valid && !g_discovery.finished);
     LeaveCriticalSection(&g_cs);
 }
 
 void CloseLogTerminal() {
+    if (!g_csInit) return;
     EnterCriticalSection(&g_cs);
-    if (g_conOut != INVALID_HANDLE_VALUE) {
-        ClearProgressLine();
-        CloseHandle(g_conOut);
-        g_conOut = INVALID_HANDLE_VALUE;
-    }
-    if (g_consoleAllocated || GetConsoleWindow() != nullptr) {
-        FreeConsole();
-        g_consoleAllocated = false;
+    if (g_conOpen.load()) {
+        g_conOpen = false;
+        ConsoleOp close;
+        close.kind = ConsoleOp::Close;
+        QueueConsole(std::move(close)); // lines already queued are written first
     }
     LeaveCriticalSection(&g_cs);
 }
 
 bool IsLogTerminalOpen() {
-    return g_conOut != INVALID_HANDLE_VALUE && GetConsoleWindow() != nullptr;
+    return g_conOpen.load();
 }
 
 void SetLogTerminalOpen(bool open) {
@@ -460,10 +590,9 @@ void LogDiscoveryProgress(const char* phase, size_t completed, size_t total,
     }
     ULONGLONG now = GetTickCount64();
     if (checkpoint || (!g_discovery.finished && now - g_progressLastDrawTick >= 50)) {
-        ClearProgressLine();
         // Completed phases already have a permanent result line; drawing another
         // finished bar would print the same result twice (once truncated).
-        if (!g_discovery.finished || !terminalEvent) DrawProgressLine();
+        if (g_conOpen.load()) QueueConsoleProgress(!g_discovery.finished || !terminalEvent);
         g_progressLastDrawTick = now;
     }
     LeaveCriticalSection(&g_cs);
@@ -566,10 +695,12 @@ void ClearLogs() {
     HANDLE h = CreateFileW(g_logPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
                            FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h != INVALID_HANDLE_VALUE) CloseHandle(h);
-    if (g_conOut != INVALID_HANDLE_VALUE) {
-        ClearProgressLine();
-        PrintConsoleBanner();
-        if (g_discovery.valid && !g_discovery.finished) DrawProgressLine();
+    if (g_conOpen.load()) {
+        QueueConsoleProgress(false); // clears the progress line
+        ConsoleOp banner;
+        banner.kind = ConsoleOp::Banner;
+        QueueConsole(std::move(banner));
+        QueueConsoleProgress(g_discovery.valid && !g_discovery.finished);
     }
     LeaveCriticalSection(&g_cs);
     LogInfo("Journal d'evenements vide par l'utilisateur");
