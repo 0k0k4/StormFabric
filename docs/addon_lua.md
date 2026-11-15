@@ -108,6 +108,51 @@ Vérifié en jeu le 2026-11-15 : depuis la commande `?sf`, le mod de démo a app
 jeu : le chemin d'erreur (fonction Lua qui lève une erreur), couvert seulement par
 les tests hors jeu.
 
+## Tick de simulation : `runtime->subscribeSimulationTick`
+
+Un mod peut agir à chaque mise à jour de la simulation, sans script :
+
+```cpp
+static void OnTick(const SwSimulationTick* tick, void* userData) {
+    if (!tick->luaState) return;          // aucune VM d'addon vivante
+    // tick->luaState s'utilise avec lua->extras (getGlobal, call...) pendant ce callback.
+}
+
+// Dans SwModInit (membres ajoutés en fin de SwRuntimeApi : vérifier structSize) :
+if (runtime->capabilities() & SW_CAP_SIMULATION_TICK) {
+    SwHandle handle = 0;
+    runtime->subscribeSimulationTick(host, &OnTick, nullptr, &handle);
+}
+```
+
+- **Moment** : une fois par mise à jour du serveur, juste après que le jeu a exécuté
+  le `onTick` de tous les addons. Le mod voit donc le monde après les addons.
+- **Cadence mesurée** : environ 60 par seconde (600 mises à jour en 9,7 s).
+- **Thread** : celui de la simulation, **différent du thread UI**. Les appels d'UI
+  native y sont refusés ; utiliser `runOnGameThread` pour passer du travail à l'UI.
+- **`luaState`** : une VM d'addon vivante et sans erreur, la même d'un tick à l'autre
+  tant qu'elle reste valide, ou `NULL` s'il n'y en a aucune. Les fonctions globales
+  `server.*` y fonctionnent ; celles liées à l'addon appelant (`getAddonIndex`,
+  `g_savedata`…) visent un addon arbitraire. Ce que le callback laisse sur la pile
+  est retiré par le loader.
+- **Où** : seulement là où la simulation serveur tourne (solo ou hôte), jamais au
+  menu principal.
+- 64 abonnements au plus par mod ; `unsubscribeSimulationTick` fonctionne aussi
+  depuis le callback. Un callback qui plante est désactivé et journalisé.
+
+**Mécanisme.** La mise à jour serveur `0x73f890` exécute la boucle des `onTick`
+d'addons (le seul appel au dispatcher `onTick`, `0x59c4e0`, s'y trouve). Elle n'est
+appelée qu'à trois endroits (`0x86651f`, `0x866764`, `0x868b1e`). Au premier
+abonnement, le loader redirige l'opérande de ces trois `call` vers un relais proche
+qui appelle la fonction d'origine avec ses douze arguments, puis délivre le tick.
+Avant toute écriture, il vérifie le prologue, la boucle des addons et que chaque
+site appelle encore la fonction d'origine ; un site déjà détourné est un conflit.
+
+**Vérifié en jeu le 2026-11-15** : le mod de démo a reçu ses ticks dès le
+chargement du monde et a appelé `server.announce` depuis le tick ; son compteur
+était identique à celui d'un `onTick` d'addon (808 = 808). Non vérifié en jeu :
+comportement en pause, en multijoueur et pendant un rechargement de scripts.
+
 ## Événements
 
 `SW_EVENT_ADDON_LUA_CREATED` et `SW_EVENT_ADDON_LUA_DESTROYED` s'abonnent par
@@ -147,3 +192,6 @@ python tools\gen_addon_lua_profile.py
 - Aucun contrôle multijoueur : un client et un serveur avec des mods différents
   exécutent des scripts aux globales différentes.
 - Le serveur dédié (`server64.exe`) n'est pas pris en charge.
+- Le tick est installé au chargement du mod, depuis le menu principal. Les trois
+  écritures de 4 octets ne sont pas atomiques entre elles : n'activer un mod qui
+  s'abonne au tick que hors partie (le menu MODS n'existe qu'au menu principal).

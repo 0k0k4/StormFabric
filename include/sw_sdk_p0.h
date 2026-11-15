@@ -13,7 +13,8 @@ typedef enum SwCapability {
     SW_CAP_SIMULATION_EVENTS=1ull<<6, SW_CAP_WORLD=1ull<<7,
     SW_CAP_VEHICLES=1ull<<8, SW_CAP_PLAYERS=1ull<<9, SW_CAP_WORLD_STORAGE=1ull<<10,
     SW_CAP_LUA_EVENTS=1ull<<11, SW_CAP_LUA_QOL=1ull<<12,
-    SW_CAP_LUA_ADDON=1ull<<13 // addon/mission script VMs: registerAddonLibrary + ADDON_LUA events
+    SW_CAP_LUA_ADDON=1ull<<13, // addon/mission script VMs: registerAddonLibrary + ADDON_LUA events
+    SW_CAP_SIMULATION_TICK=1ull<<14 // runtime->subscribeSimulationTick (does not imply SIMULATION_EVENTS)
 } SwCapability;
 typedef enum SwUiSurface { SW_SURFACE_MENU=0, SW_SURFACE_HUD=1, SW_SURFACE_EDITOR=2, SW_SURFACE_NONE=3 } SwUiSurface;
 typedef enum SwEventType {
@@ -38,6 +39,19 @@ typedef struct SwEvent {
 } SwEvent;
 typedef void (*SwEventCallback)(const SwEvent* event, void* userData);
 typedef void (*SwTaskCallback)(void* userData);
+// One server simulation update, delivered synchronously right after the game has
+// run every addon's onTick for it. Only where the server simulation runs (single
+// player or host), never on a pure client, and never in the main menu.
+typedef struct SwSimulationTick {
+    uint32_t structSize;
+    uint64_t sequence; // loader count of simulation updates since process start (first is 1)
+    // A live addon/mission script VM, usable with lua->extras (getGlobal, call...) during
+    // this callback only, so the mod can call the game's server.* API. NULL when no addon
+    // VM is alive. Functions tied to the calling addon (getAddonIndex, g_savedata...) refer
+    // to an arbitrary addon; prefer the global server.* functions.
+    void* luaState;
+} SwSimulationTick;
+typedef void (*SwSimulationTickCallback)(const SwSimulationTick* tick, void* userData);
 typedef struct SwRuntimeApi {
     uint32_t structSize;
     uint64_t (*capabilities)(void);
@@ -49,6 +63,11 @@ typedef struct SwRuntimeApi {
     double (*getMonotonicTime)(void);
     bool (*isGameThread)(void);
     SwResult (*getSimulationTime)(double* outSeconds); // unavailable until a certified simulation binding exists
+    // Appended: check structSize. SW_UNAVAILABLE unless SW_CAP_SIMULATION_TICK is set.
+    // The callback runs on the simulation thread, which may differ from the UI thread:
+    // native UI calls are refused there; use runOnGameThread to hand work over.
+    SwResult (*subscribeSimulationTick)(const SwModHost*, SwSimulationTickCallback, void* userData, SwHandle* out);
+    SwResult (*unsubscribeSimulationTick)(const SwModHost*, SwHandle);
 } SwRuntimeApi;
 typedef struct SwActionState { bool down,pressed,released; uint64_t sequence; } SwActionState;
 enum { SW_KEY_CTRL=1, SW_KEY_SHIFT=2, SW_KEY_ALT=4 };

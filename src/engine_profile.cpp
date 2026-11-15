@@ -96,6 +96,26 @@ bool ResolveAddonLuaProfile(uint8_t* base, AddonLuaProfile* out) {
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
+bool ResolveSimulationTickProfile(uint8_t* base, SimulationTickProfile* out) {
+    if (!base || !out) return false;
+    static_assert(sizeof(kSimUpdateSites) / sizeof(kSimUpdateSites[0]) == 3, "three update call sites");
+    __try {
+        if (EngineBuild(base) != 2) return false; // newer reviewed build only
+        if (memcmp(base + kSimUpdate, kSimUpdatePrologue, sizeof(kSimUpdatePrologue)) != 0 ||
+            memcmp(base + kSimUpdateLoop, kSimUpdateLoopBytes, sizeof(kSimUpdateLoopBytes)) != 0) return false;
+        SimulationTickProfile profile{base + kSimUpdate, {}};
+        for (size_t i = 0; i < 3; ++i) {
+            uint8_t* site = base + kSimUpdateSites[i];
+            int32_t rel = 0;
+            memcpy(&rel, site + 1, sizeof(rel));
+            if (site[0] != 0xe8 || site + 5 + rel != base + kSimUpdate) return false;
+            profile.sites[i] = site;
+        }
+        *out = profile;
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+bool ValidateSimulationTickProfile(uint8_t* base) { SimulationTickProfile ignored; return ResolveSimulationTickProfile(base, &ignored); }
 void* ResolveLuaPcallk(uint8_t* base) {
     if (!base) return nullptr;
     __try {

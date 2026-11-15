@@ -14,6 +14,7 @@ bool ValidateLuaProfile(uint8_t*) { return false; }
 bool ValidateQolEditorProfile(uint8_t*) { return false; }
 bool ResolveAddonLuaProfile(uint8_t*, AddonLuaProfile*) { return false; }
 void* ResolveLuaPcallk(uint8_t*) { return nullptr; }
+bool ResolveSimulationTickProfile(uint8_t*, SimulationTickProfile*) { return false; }
 std::vector<std::pair<SwEventType,SwHandle>> lifecycleEvents;
 void QueueModLuaEvent(SwEventType type,SwHandle id) {lifecycleEvents.emplace_back(type,id);}
 }
@@ -307,6 +308,31 @@ void FakeClosure(uintptr_t lua, void* fn, int upvalues) {
     top->tag = 0x66;
 }
 alignas(16) uint8_t addonScript[0x90] = {};
+// ---- simulation tick fixtures ----
+std::vector<std::pair<uint64_t, void*>> ticks;
+int tickPushes = 0;
+void OnTick(const SwSimulationTick* tick, void* data) {
+    assert(tick->structSize == sizeof(SwSimulationTick) && data == reinterpret_cast<void*>(0x77));
+    ticks.emplace_back(tick->sequence, tick->luaState);
+    if (tick->luaState) {
+        // lua->extras is usable during the tick, and junk left on the stack is discarded.
+        assert(api->pushNil(&owner, tick->luaState) == SW_LUA_OK);
+        assert(api->pushInteger(&owner, tick->luaState, 3) == SW_LUA_OK);
+        assert(api->pushNil(&otherOwner, tick->luaState) == SW_LUA_INVALID_CONTEXT);
+        ++tickPushes;
+    }
+}
+SwHandle selfHandle = 0;
+int selfCalls = 0;
+void UnsubscribeSelf(const SwSimulationTick*, void*) { ++selfCalls; assert(swml::UnsubscribeSimulationTick(&owner, selfHandle) == SW_OK); }
+void CrashTick(const SwSimulationTick*, void*) { throw 7; }
+uint64_t forwarded[12] = {};
+void FakeSimUpdate(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6,
+                   uint64_t a7, uint64_t a8, uint64_t a9, uint64_t a10, uint64_t a11, uint64_t a12) {
+    const uint64_t args[12] = {a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12};
+    memcpy(forwarded, args, sizeof(args));
+    assert(ticks.empty() || ticks.back().first == g_tickSequence); // tick is delivered after the update
+}
 int addonCalls = 0;
 int AddonPing(void* lua, void*) {
     ++addonCalls;
@@ -452,6 +478,61 @@ int main() {
     assert(swml::lifecycleEvents[3] == std::make_pair(SW_EVENT_ADDON_LUA_DESTROYED, reloaded));
     swml::ReleaseNativeLuaOwner(&owner);
     assert(!pingToken->owner && !pingToken->callback);
+
+    // ---- Simulation tick --------------------------------------------------------------
+    SwHandle tickHandle = 0;
+    assert(swml::SubscribeSimulationTick(nullptr, &OnTick, nullptr, &tickHandle) == SW_INVALID_OWNER);
+    assert(swml::SubscribeSimulationTick(&owner, nullptr, nullptr, &tickHandle) == SW_INVALID_ARGUMENT);
+    assert(swml::SubscribeSimulationTick(&owner, &OnTick, nullptr, nullptr) == SW_INVALID_ARGUMENT);
+    assert(swml::SubscribeSimulationTick(&owner, &OnTick, nullptr, &tickHandle) == SW_UNAVAILABLE); // profile rejected
+    g_tickInstalled = true; // the call-site redirection itself is covered by lua_profile_tests
+    assert(swml::SubscribeSimulationTick(&owner, &OnTick, reinterpret_cast<void*>(0x77), &tickHandle) == SW_OK && tickHandle);
+    ResetState(); g_liveLuaVms.clear();
+    RunSimulationTick();                       // no addon VM alive: tick without a state
+    assert(ticks.size() == 1 && ticks[0].second == nullptr);
+    g_liveLuaVms[L] = {addonSelf, 77, true};
+    *(uintptr_t*)(addonSelf + 8) = L;
+    *(uint32_t*)(addonSelf + 0x78) = 3;        // errored script: not handed out
+    RunSimulationTick();
+    assert(ticks.size() == 2 && ticks[1].second == nullptr);
+    *(uint32_t*)(addonSelf + 0x78) = 0;
+    const int topBefore = ApiGetTop(state);
+    RunSimulationTick();
+    assert(ticks.size() == 3 && ticks[2].second == state && tickPushes == 1);
+    assert(ticks[2].first == ticks[1].first + 1 && ticks[1].first == ticks[0].first + 1);
+    assert(*(uintptr_t*)(L + 0x10) == reinterpret_cast<uintptr_t>(stack + 1) && topBefore == 0);
+    assert(g_luaCallbackFrame == nullptr);
+    g_liveLuaVms[L] = {reinterpret_cast<uintptr_t>(script), 78, false}; // microcontroller VMs are never used
+    RunSimulationTick();
+    assert(ticks.back().second == nullptr);
+    g_liveLuaVms[L] = {addonSelf, 77, true};
+    // The hook forwards all twelve arguments unchanged, then ticks.
+    g_origSimUpdate = &FakeSimUpdate;
+    const size_t before = ticks.size();
+    HkSimulationUpdate(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0xffffffffffffffffull);
+    for (int i = 0; i < 11; ++i) assert(forwarded[i] == static_cast<uint64_t>(i + 1));
+    assert(forwarded[11] == 0xffffffffffffffffull && ticks.size() == before + 1);
+    // Unsubscribe from inside a tick, ownership checks, crash isolation, owner release.
+    assert(swml::SubscribeSimulationTick(&owner, &UnsubscribeSelf, nullptr, &selfHandle) == SW_OK);
+    RunSimulationTick(); RunSimulationTick();
+    assert(selfCalls == 1);
+    assert(swml::UnsubscribeSimulationTick(&owner, selfHandle) == SW_NOT_FOUND);
+    assert(swml::UnsubscribeSimulationTick(&otherOwner, tickHandle) == SW_NOT_FOUND);
+    SwHandle crashHandle = 0;
+    assert(swml::SubscribeSimulationTick(&otherOwner, &CrashTick, nullptr, &crashHandle) == SW_OK);
+    const size_t beforeCrash = ticks.size();
+    RunSimulationTick();                       // the crash is contained; other subscribers still run
+    assert(ticks.size() == beforeCrash + 1 && g_luaCallbackFrame == nullptr);
+    assert(swml::UnsubscribeSimulationTick(&otherOwner, crashHandle) == SW_NOT_FOUND); // already disabled
+    for (int i = 0; i < 63; ++i) { SwHandle h; assert(swml::SubscribeSimulationTick(&owner, &OnTick, nullptr, &h) == SW_OK); }
+    SwHandle overLimit = 0;
+    assert(swml::SubscribeSimulationTick(&owner, &OnTick, nullptr, &overLimit) == SW_LIMIT_REACHED);
+    swml::ReleaseNativeLuaOwner(&owner);
+    const size_t beforeRelease = ticks.size();
+    RunSimulationTick();
+    assert(ticks.size() == beforeRelease); // released owners are never called again
+    assert(swml::UnsubscribeSimulationTick(&owner, tickHandle) == SW_NOT_FOUND);
+    puts("PASS: simulation tick; argument forwarding, addon state selection, stack restore, self-unsubscribe, crash isolation, limits, release");
     puts("PASS: addon script VMs; scoped libraries, reserved names, QoL refusal, reload generations, lifecycle events");
     puts("PASS: getGlobal and protected call; context, bounds, types, raised error as status, truncated message");
     puts("PASS: real Lua wrappers; fake stack/string/table natives; owner/thread/VM lifetime; bounds/types; relocation; protected longjmp; inert unload tokens");

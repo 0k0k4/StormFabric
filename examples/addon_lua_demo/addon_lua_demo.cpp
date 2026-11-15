@@ -74,6 +74,41 @@ static int HostName(void* L, void*) {
     return x->pushString(g_host, L, name, strlen(name)) == SW_LUA_OK ? 1 : 0;
 }
 
+// ---- Simulation tick: the DLL acts every update, without any script involvement ----
+static uint64_t g_ticks = 0;
+
+// sf_demo.ticks() -> number of simulation ticks the DLL has received
+static int Ticks(void* L, void*) {
+    const SwLuaApi* lua = g_host->api->lua;
+    if (!lua->checkStack(L, 1)) return 0;
+    lua->pushNumber(L, static_cast<double>(g_ticks));
+    return 1;
+}
+
+static void OnTick(const SwSimulationTick* tick, void*) {
+    ++g_ticks;
+    if (g_ticks == 1) {
+        char line[160];
+        snprintf(line, sizeof(line), "first simulation tick: sequence=%llu, luaState=%s, UI thread=%s",
+                 static_cast<unsigned long long>(tick->sequence), tick->luaState ? "yes" : "no",
+                 g_host->api->runtime->isGameThread() ? "yes" : "no");
+        g_host->log(g_host->modId, line);
+    }
+    if (g_ticks % 600 || !tick->luaState) return;
+    // Every 600 ticks: call the game's API from the tick itself.
+    void* L = tick->luaState;
+    const SwLuaApi* lua = g_host->api->lua;
+    const SwLuaExtrasApi* x = lua->extras;
+    char text[160], error[256];
+    snprintf(text, sizeof(text), "C++ tick #%llu (no script involved)", static_cast<unsigned long long>(g_ticks));
+    if (lua->checkStack(L, 6) && PushServerFunction(L, "announce")) {
+        x->pushString(g_host, L, "StormFabric tick", 16);
+        x->pushString(g_host, L, text, strlen(text));
+        if (x->call(g_host, L, 2, 0, error, sizeof(error)) != SW_LUA_OK) g_host->log(g_host->modId, error);
+    }
+    g_host->log(g_host->modId, text); // the loader restores the stack after the callback
+}
+
 static void OnVm(const SwEvent* event, void*) {
     g_host->log(g_host->modId, event->type == SW_EVENT_ADDON_LUA_CREATED
         ? "Addon script VM created (sf_demo installed)" : "Addon script VM destroyed/reloaded");
@@ -92,17 +127,24 @@ SW_MOD_EXPORT bool SwModInit(const SwModHost* host) {
         return false;
     }
     g_host = host;
-    SwLuaFunction functions[] = {{"ping", &Ping, nullptr}, {"log", &Log, nullptr},
+    SwLuaFunction functions[] = {{"ping", &Ping, nullptr}, {"log", &Log, nullptr}, {"ticks", &Ticks, nullptr},
                                  {"announce", &Announce, nullptr}, {"hostName", &HostName, nullptr}};
-    // getGlobal/call are appended extras: without them only ping/log are offered.
+    // getGlobal/call are appended extras: without them only ping/log/ticks are offered.
     const bool canCall = lua->extras->structSize >= offsetof(SwLuaExtrasApi, call) + sizeof(lua->extras->call);
-    if (!lua->registerAddonLibrary(host, "sf_demo", functions, canCall ? 4 : 2)) {
+    if (!lua->registerAddonLibrary(host, "sf_demo", functions, canCall ? 5 : 3)) {
         g_host = nullptr;
         return false;
     }
     SwHandle subscription = 0;
     runtime->subscribe(host, SW_EVENT_MASK(SW_EVENT_ADDON_LUA_CREATED) |
                              SW_EVENT_MASK(SW_EVENT_ADDON_LUA_DESTROYED), &OnVm, nullptr, &subscription);
+    // Simulation tick: appended runtime member and its own capability.
+    if (canCall && runtime->structSize >= offsetof(SwRuntimeApi, subscribeSimulationTick) + sizeof(runtime->subscribeSimulationTick) &&
+        (runtime->capabilities() & SW_CAP_SIMULATION_TICK)) {
+        SwHandle tick = 0;
+        host->log(host->modId, runtime->subscribeSimulationTick(host, &OnTick, nullptr, &tick) == SW_OK
+            ? "Subscribed to simulation ticks" : "Simulation tick subscription refused");
+    }
     host->log(host->modId, "Registered sf_demo.ping() and sf_demo.log(msg) for newly created addon VMs");
     return true;
 }
