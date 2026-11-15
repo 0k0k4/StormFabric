@@ -12,6 +12,7 @@ uint32_t EngineRva(uint8_t*, uint32_t) { return 0; }
 bool ValidateEngineBinding(uint8_t*, uint32_t) { return false; }
 bool ValidateLuaProfile(uint8_t*) { return false; }
 bool ValidateQolEditorProfile(uint8_t*) { return false; }
+bool ResolveAddonLuaProfile(uint8_t*, AddonLuaProfile*) { return false; }
 std::vector<std::pair<SwEventType,SwHandle>> lifecycleEvents;
 void QueueModLuaEvent(SwEventType type,SwHandle id) {lifecycleEvents.emplace_back(type,id);}
 }
@@ -219,6 +220,33 @@ int Exercise(void* lua, void*) {
 }
 int BadResults(void*, void*) { return INT_MAX; }
 int Throws(void*, void*) { throw 123; }
+// Natives used only by library installation: push _G, and turn the pushed
+// light-userdata token into a C closure value.
+void FakeRawGeti(uintptr_t lua, int index, long long n) {
+    assert(lua == L && index == kRegistryIdx && n == 2);
+    PushValue({Object(0x38), 0x45u, 0});
+}
+void FakeClosure(uintptr_t lua, void* fn, int upvalues) {
+    assert(lua == L && fn && upvalues == 1);
+    auto* top = reinterpret_cast<Value*>(*(uintptr_t*)(L + 0x10) - 16);
+    assert(top->tag == 2);
+    top->tag = 0x66;
+}
+alignas(16) uint8_t addonScript[0x90] = {};
+int addonCalls = 0;
+int AddonPing(void* lua, void*) {
+    ++addonCalls;
+    // Microcontroller-only QoL must be inert for an addon script object.
+    assert(swml::NativeLuaPrimitives()->qol->clamp(lua) == 0);
+    assert(swml::NativeLuaPrimitives()->qol->getNumbers(lua) == 0);
+    assert(api->pushInteger(&owner, lua, 7) == SW_LUA_OK);
+    return 1;
+}
+void FakeAddonInit(uintptr_t self) { assert(self == reinterpret_cast<uintptr_t>(addonScript)); *(uintptr_t*)(self + 8) = L; }
+void FakeAddonDestroy(uintptr_t self) {
+    assert(g_liveLuaVms.count(L) == 0); // invalidated before the original close runs
+    *(uintptr_t*)(self + 8) = 0;
+}
 void FakeInit(uintptr_t self) { assert(self == reinterpret_cast<uintptr_t>(script)); *(uintptr_t*)(self + 8) = L; }
 void FakeDestroy(uintptr_t self) {
     assert(g_liveLuaVms.count(L) == 0); // invalidated before the original destructor runs
@@ -302,5 +330,48 @@ int main() {
     assert(swml::lifecycleEvents[2]==std::make_pair(SW_EVENT_LUA_DESTROYED,firstInit));
     assert(swml::lifecycleEvents[3].first==SW_EVENT_LUA_CREATED);
     assert(swml::lifecycleEvents[4]==std::make_pair(SW_EVENT_LUA_DESTROYED,swml::lifecycleEvents[3].second));
+
+    // ---- Addon/mission script VMs -------------------------------------------------------
+    swml::lifecycleEvents.clear();
+    SwLuaFunction addonFunctions[] = {{"ping", &AddonPing, nullptr}};
+    assert(!RegisterAddonLibrary(&owner, "sf_demo", addonFunctions, 1)); // hooks not installed: fail closed
+    g_addonInstalled = true;
+    for (const char* name : {"server", "matrix", "g_savedata", "pairs", "onTick", "onPlayerJoin", "httpReply", "math"})
+        assert(!RegisterAddonLibrary(&owner, name, addonFunctions, 1));
+    assert(RegisterAddonLibrary(&owner, "online", addonFunctions, 1)); // "on" + lowercase is not a callback name
+    assert(RegisterAddonLibrary(&owner, "sf_demo", addonFunctions, 1));
+    assert(!RegisterAddonLibrary(&otherOwner, "sf_demo", addonFunctions, 1));
+    functions[0].callback = &BadResults;
+    assert(RegisterLibrary(&owner, "sf_demo", functions, 1)); // scopes are independent
+    g_rawgeti = &FakeRawGeti; g_pushcclosure = &FakeClosure;
+    g_origAddonLuaInit = &FakeAddonInit; g_origAddonLuaDestroy = &FakeAddonDestroy;
+    ResetState(); g_liveLuaVms.clear(); fields.clear();
+    const uintptr_t addonSelf = reinterpret_cast<uintptr_t>(addonScript);
+    HkAddonLuaInit(addonSelf);
+    assert(g_liveLuaVms.count(L) == 1 && g_liveLuaVms.at(L).addon && g_liveLuaVms.at(L).self == addonSelf);
+    const auto addonGeneration = g_liveLuaVms.at(L).generation;
+    // Only addon-scoped libraries are installed as globals of the addon VM.
+    size_t addonTables = 0; LibraryFunction* pingToken = nullptr;
+    for (const auto& table : fields) for (const auto& field : table.second) {
+        if (field.first == "sf_demo" || field.first == "online") ++addonTables;
+        assert(field.first != function);
+    }
+    assert(addonTables == 2 && ApiGetTop(state) == 0);
+    for (const auto& e : g_libraryFunctions) if (e->addon && e->library == "sf_demo") pingToken = e.get();
+    assert(pingToken && Dispatch(pingToken) == 1 && addonCalls == 1);
+    ResetState(); g_liveLuaVms.clear(); g_liveLuaVms[L] = {addonSelf, addonGeneration, true};
+    HkAddonLuaInit(addonSelf); // script reload: destroy then create, new generation
+    assert(g_liveLuaVms.at(L).generation > addonGeneration);
+    const auto reloaded = g_liveLuaVms.at(L).generation;
+    HkAddonLuaDestroy(addonSelf);
+    assert(g_liveLuaVms.count(L) == 0 && Dispatch(pingToken) == 0 && addonCalls == 1);
+    assert(swml::lifecycleEvents.size() == 4);
+    assert(swml::lifecycleEvents[0] == std::make_pair(SW_EVENT_ADDON_LUA_CREATED, addonGeneration));
+    assert(swml::lifecycleEvents[1] == std::make_pair(SW_EVENT_ADDON_LUA_DESTROYED, addonGeneration));
+    assert(swml::lifecycleEvents[2] == std::make_pair(SW_EVENT_ADDON_LUA_CREATED, reloaded));
+    assert(swml::lifecycleEvents[3] == std::make_pair(SW_EVENT_ADDON_LUA_DESTROYED, reloaded));
+    swml::ReleaseNativeLuaOwner(&owner);
+    assert(!pingToken->owner && !pingToken->callback);
+    puts("PASS: addon script VMs; scoped libraries, reserved names, QoL refusal, reload generations, lifecycle events");
     puts("PASS: real Lua wrappers; fake stack/string/table natives; owner/thread/VM lifetime; bounds/types; relocation; protected longjmp; inert unload tokens");
 }

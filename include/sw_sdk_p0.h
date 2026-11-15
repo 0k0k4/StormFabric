@@ -12,7 +12,8 @@ typedef enum SwCapability {
     SW_CAP_NATIVE_HUD=1ull<<4, SW_CAP_LUA_EXTRAS=1ull<<5,
     SW_CAP_SIMULATION_EVENTS=1ull<<6, SW_CAP_WORLD=1ull<<7,
     SW_CAP_VEHICLES=1ull<<8, SW_CAP_PLAYERS=1ull<<9, SW_CAP_WORLD_STORAGE=1ull<<10,
-    SW_CAP_LUA_EVENTS=1ull<<11, SW_CAP_LUA_QOL=1ull<<12
+    SW_CAP_LUA_EVENTS=1ull<<11, SW_CAP_LUA_QOL=1ull<<12,
+    SW_CAP_LUA_ADDON=1ull<<13 // addon/mission script VMs: registerAddonLibrary + ADDON_LUA events
 } SwCapability;
 typedef enum SwUiSurface { SW_SURFACE_MENU=0, SW_SURFACE_HUD=1, SW_SURFACE_EDITOR=2, SW_SURFACE_NONE=3 } SwUiSurface;
 typedef enum SwEventType {
@@ -20,7 +21,10 @@ typedef enum SwEventType {
     SW_EVENT_ACTION=4, SW_EVENT_LUA_CREATED=5, SW_EVENT_LUA_DESTROYED=6,
     SW_EVENT_WORLD_LOADED=7, SW_EVENT_WORLD_CLOSED=8, SW_EVENT_SIMULATION_TICK=9,
     SW_EVENT_ENTITY_CREATED=10, SW_EVENT_ENTITY_DESTROYED=11, SW_EVENT_PLAYER_CONNECTED=12,
-    SW_EVENT_UI_CLICK=13
+    SW_EVENT_UI_CLICK=13,
+    // Addon/mission script VM lifecycle (opaque generation in `handle`, no stack access).
+    // A script reload destroys and recreates its VM: this is NOT a world load/unload.
+    SW_EVENT_ADDON_LUA_CREATED=14, SW_EVENT_ADDON_LUA_DESTROYED=15
 } SwEventType;
 #define SW_EVENT_MASK(type) (UINT64_C(1) << (type))
 typedef struct SwEvent {

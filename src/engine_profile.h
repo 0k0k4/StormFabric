@@ -10,4 +10,11 @@ bool ValidateLuaProfile(uint8_t* base);
 // output enrichment and the timeout unlock. Independent of the core service so
 // runtime Lua startup never depends on optional editor targets.
 bool ValidateQolEditorProfile(uint8_t* base);
+// Optional addon/mission script VM lifecycle (c_playlist_lua_script vtable slots
+// 1 and 3). Certified for the newer reviewed build only: every other build,
+// a changed method body or an already replaced slot leaves it unavailable.
+// The state pointer lives at self+8, exactly as for microcontroller scripts.
+struct AddonLuaProfile { void** vtable; void* close; void* init; };
+bool ResolveAddonLuaProfile(uint8_t* base, AddonLuaProfile* out);
+bool ValidateAddonLuaProfile(uint8_t* base);
 }

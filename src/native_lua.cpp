@@ -62,13 +62,16 @@ struct LibraryFunction {
     std::string name;
     SwLuaCallback callback;
     void* userData;
+    bool addon; // installed in addon/mission script VMs instead of microcontroller VMs
 };
 // Tokens are loader-owned and retained: Lua closures can outlive a plugin or its host.
 std::vector<std::unique_ptr<LibraryFunction>> g_libraryFunctions;
 std::recursive_mutex g_libraryMutex;
-void ApplyRegisteredLibraries(uintptr_t self);
+void ApplyRegisteredLibraries(uintptr_t self, bool addon);
 
-struct LiveLuaVm { uintptr_t self; uint64_t generation; };
+// `addon` VMs belong to c_playlist_lua_script: their `self` has none of the
+// microcontroller input/output/screen fields, so QoL wrappers must refuse them.
+struct LiveLuaVm { uintptr_t self; uint64_t generation; bool addon; };
 std::map<uintptr_t, LiveLuaVm> g_liveLuaVms;
 uint64_t g_nextLuaGeneration = 0;
 struct LuaCallbackFrame {
@@ -190,6 +193,12 @@ McLuaDestroyFn    g_origMcLuaDestroy = nullptr;
 ScriptTabInitFn   g_origScriptTabInit = nullptr;
 ScriptTabUpdateFn g_origScriptTabUpdate = nullptr;
 HelpTabInitFn     g_origHelpTabInit = nullptr;
+
+// Addon/mission script VMs (newer reviewed build only; see engine_profile.h).
+void** g_addonLuaVt = nullptr;
+McLuaInitFn    g_origAddonLuaInit = nullptr;
+McLuaDestroyFn g_origAddonLuaDestroy = nullptr;
+bool g_addonInstalled = false;
 
 uintptr_t g_lastScriptTab = 0;
 
@@ -1027,7 +1036,7 @@ void HkMcLuaInit(uintptr_t self) {
         if (state) {vmGeneration=++g_nextLuaGeneration;g_liveLuaVms[state] = {self, vmGeneration};}
     }
 
-    ApplyRegisteredLibraries(self);
+    ApplyRegisteredLibraries(self, false);
 
     if (!g_enabled) {
         if(vmGeneration)swml::QueueModLuaEvent(SW_EVENT_LUA_CREATED,vmGeneration);
@@ -1168,6 +1177,42 @@ void HkMcLuaDestroy(uintptr_t self) {
     }
     g_mcStates.erase(self);
     g_origMcLuaDestroy(self);
+}
+
+// ---- Addon/mission script VMs (c_playlist_lua_script) ---------------------------------------
+// Same protocol as the microcontroller class: slot 1 closes the state stored at self+8,
+// slot 3 registers the game's tables (server, matrix, ...) on a freshly created state.
+// The script chunk itself is loaded afterwards, so libraries installed here are visible
+// to script.lua from its first line.
+void RetireAddonLuaVms(uintptr_t self) {
+    std::lock_guard<std::recursive_mutex> lock(g_libraryMutex);
+    for (auto it = g_liveLuaVms.begin(); it != g_liveLuaVms.end();) {
+        if (it->second.addon && it->second.self == self) {
+            swml::QueueModLuaEvent(SW_EVENT_ADDON_LUA_DESTROYED, it->second.generation);
+            it = g_liveLuaVms.erase(it);
+        } else ++it;
+    }
+}
+
+void HkAddonLuaInit(uintptr_t self) {
+    // A reinitialisation invalidates the old state before the game can free/reuse it.
+    RetireAddonLuaVms(self);
+    g_origAddonLuaInit(self);
+
+    uint64_t vmGeneration = 0;
+    {
+        std::lock_guard<std::recursive_mutex> lock(g_libraryMutex);
+        uintptr_t state = *(uintptr_t*)(self + 8);
+        if (state) { vmGeneration = ++g_nextLuaGeneration; g_liveLuaVms[state] = {self, vmGeneration, true}; }
+    }
+    if (!vmGeneration) return;
+    ApplyRegisteredLibraries(self, true);
+    swml::QueueModLuaEvent(SW_EVENT_ADDON_LUA_CREATED, vmGeneration);
+}
+
+void HkAddonLuaDestroy(uintptr_t self) {
+    RetireAddonLuaVms(self);
+    g_origAddonLuaDestroy(self);
 }
 
 // Débloque la limite de caractères dans l'éditeur Lua en jeu (4096/8192 -> 131 072)
@@ -1353,8 +1398,27 @@ bool swml::EnableNativeLua(const SwModHost* host) {
                   "Service Lua central installe : bibliotheques personnalisees et evenements VM (QoL/editeur optionnels separes)");
     }
     g_installed = true;
+
+    // Optional addon/mission script VMs: certified for the newer reviewed build only.
+    // A rejected profile or a failed transaction leaves the core service untouched.
+    swml::AddonLuaProfile addon{};
+    if (swml::ResolveAddonLuaProfile(g_base, &addon)) {
+        g_addonLuaVt = addon.vtable;
+        const swml::SlotPatch addonPatches[] = {
+            {&g_addonLuaVt[1], addon.close, reinterpret_cast<void*>(&HkAddonLuaDestroy), reinterpret_cast<void**>(&g_origAddonLuaDestroy)},
+            {&g_addonLuaVt[3], addon.init, reinterpret_cast<void*>(&HkAddonLuaInit), reinterpret_cast<void**>(&g_origAddonLuaInit)}
+        };
+        g_addonInstalled = swml::PatchSlots(addonPatches, _countof(addonPatches));
+        if (host->log) host->log("lua", g_addonInstalled
+            ? "Addon Lua: script VM lifecycle hooks installed (libraries apply to newly created addon VMs)"
+            : "ERROR: Addon Lua: vtable transaction failed; addon libraries unavailable");
+    } else if (host->log) {
+        host->log("lua", "Addon Lua: unavailable for this build (newer reviewed build only); microcontroller Lua unaffected");
+    }
     return true;
 }
+
+bool swml::NativeAddonLuaInstalled() { return g_addonInstalled; }
 
 // Optional QoL/editor hooks are a separate activation: validated, bound and
 // installed only when a mod asks for them, never as a side effect of core Lua
@@ -1474,14 +1538,32 @@ bool IsLibraryName(const char* s) {
     return true;
 }
 
-bool RegisterLibrary(const SwModHost* owner, const char* name,
-                     const SwLuaFunction* functions, size_t count) {
+// Addon libraries become globals of script.lua: refuse every game table, standard
+// library, base function and callback name so a mod cannot shadow the game's API.
+bool IsReservedAddonName(const char* name) {
+    static const char* const reserved[] = {
+        "server", "matrix", "property", "debug", "async", "g_savedata", "_G", "_ENV", "_VERSION",
+        "math", "string", "table", "coroutine", "utf8", "os", "io", "package",
+        "pairs", "ipairs", "next", "tostring", "tonumber", "type", "print", "select", "error",
+        "assert", "pcall", "xpcall", "load", "loadfile", "dofile", "require", "collectgarbage",
+        "getmetatable", "setmetatable", "rawget", "rawset", "rawequal", "rawlen", "httpReply"};
+    for (const char* r : reserved) if (strcmp(name, r) == 0) return true;
+    // onTick, onCreate, onPlayerJoin, ...: the game looks these globals up as callbacks.
+    return name[0] == 'o' && name[1] == 'n' && name[2] >= 'A' && name[2] <= 'Z';
+}
+
+bool RegisterLibraryScoped(const SwModHost* owner, const char* name,
+                           const SwLuaFunction* functions, size_t count, bool addon) {
     std::lock_guard<std::recursive_mutex> lock(g_libraryMutex);
     if (!g_installed || !g_rawrunprotected || !owner || !IsLibraryName(name) || !functions || !count || count > 256) return false;
-    const char* reserved[] = {"input", "output", "screen", "math", "debug", "qol", "_G", "string", "table"};
-    for (const char* r : reserved) if (strcmp(name, r) == 0) return false;
+    if (addon) {
+        if (!g_addonInstalled || IsReservedAddonName(name)) return false;
+    } else {
+        const char* reserved[] = {"input", "output", "screen", "math", "debug", "qol", "_G", "string", "table"};
+        for (const char* r : reserved) if (strcmp(name, r) == 0) return false;
+    }
     for (const auto& e : g_libraryFunctions) {
-        if (e->owner && e->library == name) return false;
+        if (e->owner && e->addon == addon && e->library == name) return false;
     }
     for (size_t i = 0; i < count; ++i) {
         if (!IsLibraryName(functions[i].name) || !functions[i].callback) return false;
@@ -1497,12 +1579,21 @@ bool RegisterLibrary(const SwModHost* owner, const char* name,
             e->name = functions[i].name;
             e->callback = functions[i].callback;
             e->userData = functions[i].userData;
+            e->addon = addon;
             staged.push_back(std::move(e));
         }
         g_libraryFunctions.reserve(g_libraryFunctions.size() + count);
         for (auto& e : staged) g_libraryFunctions.push_back(std::move(e));
     } catch (...) { return false; }
     return true;
+}
+bool RegisterLibrary(const SwModHost* owner, const char* name,
+                     const SwLuaFunction* functions, size_t count) {
+    return RegisterLibraryScoped(owner, name, functions, count, false);
+}
+bool RegisterAddonLibrary(const SwModHost* owner, const char* name,
+                          const SwLuaFunction* functions, size_t count) {
+    return RegisterLibraryScoped(owner, name, functions, count, true);
 }
 
 struct LibraryInstallData { const char* name; const std::vector<LibraryFunction*>* entries; };
@@ -1526,12 +1617,13 @@ void InstallLibraryLeaf(uintptr_t L, void* opaque) {
     g_setfield(L, g_index2addr(L, -2), data->name);
     *(uintptr_t*)(L + 0x10) -= 16;
 }
-void ApplyRegisteredLibraries(uintptr_t self) {
+void ApplyRegisteredLibraries(uintptr_t self, bool addon) {
     std::lock_guard<std::recursive_mutex> lock(g_libraryMutex);
     uintptr_t L = *(uintptr_t*)(self + 8);
     if (!L || !g_rawrunprotected || !g_checkstack(L, 8)) return;
     std::map<std::string, std::vector<LibraryFunction*>> libraries;
-    for (const auto& e : g_libraryFunctions) if (e->owner && e->callback) libraries[e->library].push_back(e.get());
+    for (const auto& e : g_libraryFunctions)
+        if (e->owner && e->callback && e->addon == addon) libraries[e->library].push_back(e.get());
     for (const auto& lib : libraries) {
         const uintptr_t savedOffset = *(uintptr_t*)(L + 0x10) - *(uintptr_t*)(L + 0x38);
         LibraryInstallData data{lib.first.c_str(), &lib.second};
@@ -1739,6 +1831,9 @@ int InvokeQol(void* state, int (*fn)(uintptr_t), size_t contextOffset) {
     uintptr_t L = reinterpret_cast<uintptr_t>(state);
     uintptr_t self = g_luaCallbackFrame->self;
     if (!self) return 0;
+    // QoL reads microcontroller fields of `self`; an addon script object has none.
+    auto vm = g_liveLuaVms.find(L);
+    if (vm == g_liveLuaVms.end() || vm->second.addon) return 0;
     uintptr_t saved = g_upvalueOverride;
     int result = 0;
     __try {
@@ -1814,7 +1909,8 @@ void swml::ReleaseNativeLuaOwner(const SwModHost* owner) {
 
 const SwLuaApi* swml::NativeLuaPrimitives() {
     static const SwLuaApi api = {sizeof(SwLuaApi), nullptr, nullptr, &RegisterLibrary,
-        &ApiGetTop, &ApiArgNumber, &ApiArgBool, &ApiArgString, &ApiCheckStack, &ApiPushNumber, &ApiPushBool, &g_qolApi};
+        &ApiGetTop, &ApiArgNumber, &ApiArgBool, &ApiArgString, &ApiCheckStack, &ApiPushNumber, &ApiPushBool, &g_qolApi,
+        nullptr, &RegisterAddonLibrary};
     return &api;
 }
 

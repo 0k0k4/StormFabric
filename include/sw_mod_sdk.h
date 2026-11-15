@@ -105,6 +105,15 @@ typedef struct SwLuaApi {
     void (*pushBool)(void* luaState, bool value);
     const SwLuaQolApi* qol;
     const SwLuaExtrasApi* extras; // appended: check structSize before reading
+    // Appended: check structSize before reading. Same contract as registerLibrary, but the
+    // library is installed as a global table in newly created ADDON/MISSION script VMs
+    // (script.lua), where the game's own server.* / matrix.* API is available to the script.
+    // Returns false when addon VMs are not certified for the running build (see
+    // SW_CAP_LUA_ADDON), or when the name collides with a game table/global/callback.
+    // Callbacks get the same stack API (getTop/arg*/push*/extras); the microcontroller-only
+    // qol functions and the video API return nothing when called from an addon VM.
+    bool (*registerAddonLibrary)(const SwModHost* owner, const char* name,
+                                 const SwLuaFunction* functions, size_t count);
 } SwLuaApi;
 
 // Native monitor video service. Only callable from an onDraw Lua callback for a vehicle

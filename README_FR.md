@@ -50,7 +50,8 @@ besoin d'adresses du jeu codées en dur.
 | `api->runtime` | Événements UI/VM Lua, tâches différées, timers et annulation | Mises à jour UI et temps monotone, **pas** ticks/temps de simulation |
 | `api->input` | Actions clavier, modificateurs et états pressed/down/released | F8 vérifié ; pas de souris/manette ni de mode curseur natif exposé |
 | `api->storage` | Configuration et données binaires par mod, écritures atomiques et clés contrôlées | Jusqu'à 4 Mio par fichier ; stockage lié au monde indisponible |
-| `api->lua` / `lua->extras` | Bibliothèques personnalisées, 34 fonctions QoL, chaînes, nil, entiers, tables, champs et types | VM microcontrôleurs uniquement ; `raiseError` volontairement non pris en charge |
+| `api->lua` / `lua->extras` | Bibliothèques personnalisées, 34 fonctions QoL, chaînes, nil, entiers, tables, champs et types | VM des microcontrôleurs ; `raiseError` volontairement non pris en charge |
+| `lua->registerAddonLibrary` | Bibliothèques natives pour les scripts d'addons/missions (`script.lua`), à côté de l'API `server.*` du jeu | Build récent (v1.15.23) uniquement ; voir [Lua des addons](docs/addon_lua.md) |
 | `api->video` | Effets sur la source vidéo des moniteurs et capture asynchrone | Expérimental ; les lectures retournent la dernière capture source terminée |
 | `api->world` | Types réservés pour de futurs accès au monde | **NULL** : aucune API monde/entités/véhicules/joueurs activée |
 
@@ -125,6 +126,7 @@ activez-le dans **MODS**.
 | --- | --- |
 | [`p0_demo`](examples/p0_demo/README.md) | Panneau natif, F8, stockage et vérifications PASS/FAIL/SKIP du SDK P0 |
 | [`native_api_demo`](examples/native_api_demo) | Bibliothèque Lua `sw_demo`, sans adresses moteur |
+| [`addon_lua_demo`](examples/addon_lua_demo) | Bibliothèque `sf_demo` pour les scripts d'addons, avec un `script.lua` d'exemple |
 | [`mc_lua_qol`](examples/mc_lua_qol) | Fonctions QoL et extensions des microcontrôleurs via le SDK |
 | [`video_fx`](docs/video_fx.md) | Effets/capture vidéo natifs et script de démonstration |
 | `sw_core_lib` / `radar_telemetry` | Dépendances entre mods et DLL locale |
@@ -211,6 +213,7 @@ tests\run_tests.bat
 | [SDK P0](docs/p0_sdk.md) | État réel, limites et vérifications en jeu |
 | [Engine discovery](docs/engine_discovery.md) | Profils, hashes, validation et diagnostic des builds inconnus |
 | [Extensions Lua](docs/p0_lua.md) | Valeurs/tables, contexte callback et erreurs |
+| [Lua des addons](docs/addon_lua.md) | Bibliothèques et événements des VM d'addons/missions |
 | [Stockage](docs/p0_storage.md) | Portées, sécurité des chemins et écritures atomiques |
 | [Moniteurs vidéo](docs/video_monitors.md) / [Video FX](docs/video_fx.md) | Pipeline natif, effets et captures |
 | [Notifications](docs/ingame_notifications.md) | Contexte UI et cycle de vie HUD/éditeur |
