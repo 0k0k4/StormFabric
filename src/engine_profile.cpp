@@ -96,6 +96,13 @@ bool ResolveAddonLuaProfile(uint8_t* base, AddonLuaProfile* out) {
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
+void* ResolveLuaPcallk(uint8_t* base) {
+    if (!base) return nullptr;
+    __try {
+        if (EngineBuild(base) != 2) return nullptr; // newer reviewed build only
+        return memcmp(base + kLuaPcallk, kLuaPcallkBytes, sizeof(kLuaPcallkBytes)) == 0 ? base + kLuaPcallk : nullptr;
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
+}
 bool ValidateAddonLuaProfile(uint8_t* base) { AddonLuaProfile ignored; return ResolveAddonLuaProfile(base, &ignored); }
 bool ValidateLuaProfile(uint8_t* base) { return base && Check(base); }
 bool ValidateQolEditorProfile(uint8_t* base) { return base && CheckQolEditor(base); }

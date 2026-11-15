@@ -44,7 +44,7 @@ Using an `iphlpapi.dll` proxy, StormFabric integrates a native **MODS** menu dir
 | `api->input` | Keyboard actions, key modifiers, pressed/down/released states | Keybinds (e.g. F8) verified; raw mouse/controller input not exposed |
 | `api->storage` | Per-mod configuration and binary data, atomic writes, sanitized keys | Up to 4 MiB per file; world-bound storage inactive |
 | `api->lua` / `lua->extras` | Custom microcontroller libraries, 34 QoL math/string/table helpers | Microcontroller VMs; `raiseError` intentionally omitted |
-| `lua->registerAddonLibrary` | Native libraries for addon/mission scripts (`script.lua`), next to the game's `server.*` API | Newer build (v1.15.23) only; see [Addon Lua](docs/addon_lua.md) |
+| `lua->registerAddonLibrary` | Native libraries for addon/mission scripts (`script.lua`), next to the game's `server.*` API, which the mod can also call itself (`extras->call`) | Newer build (v1.15.23) only; see [Addon Lua](docs/addon_lua.md) |
 | `api->video` | Native monitor video feed effects and asynchronous frame capture | Experimental; reads return latest completed source capture |
 | `api->world` | Reserved types for future entity/vehicle/world interactions | **NULL**: world, entity, vehicle, and player APIs are disabled |
 

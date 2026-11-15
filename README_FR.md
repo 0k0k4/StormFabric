@@ -51,7 +51,7 @@ besoin d'adresses du jeu codées en dur.
 | `api->input` | Actions clavier, modificateurs et états pressed/down/released | F8 vérifié ; pas de souris/manette ni de mode curseur natif exposé |
 | `api->storage` | Configuration et données binaires par mod, écritures atomiques et clés contrôlées | Jusqu'à 4 Mio par fichier ; stockage lié au monde indisponible |
 | `api->lua` / `lua->extras` | Bibliothèques personnalisées, 34 fonctions QoL, chaînes, nil, entiers, tables, champs et types | VM des microcontrôleurs ; `raiseError` volontairement non pris en charge |
-| `lua->registerAddonLibrary` | Bibliothèques natives pour les scripts d'addons/missions (`script.lua`), à côté de l'API `server.*` du jeu | Build récent (v1.15.23) uniquement ; voir [Lua des addons](docs/addon_lua.md) |
+| `lua->registerAddonLibrary` | Bibliothèques natives pour les scripts d'addons/missions (`script.lua`), à côté de l'API `server.*` du jeu, que le mod peut aussi appeler lui-même (`extras->call`) | Build récent (v1.15.23) uniquement ; voir [Lua des addons](docs/addon_lua.md) |
 | `api->video` | Effets sur la source vidéo des moniteurs et capture asynchrone | Expérimental ; les lectures retournent la dernière capture source terminée |
 | `api->world` | Types réservés pour de futurs accès au monde | **NULL** : aucune API monde/entités/véhicules/joueurs activée |
 

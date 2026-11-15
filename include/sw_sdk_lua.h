@@ -17,7 +17,8 @@ typedef enum SwLuaStatus {
     SW_LUA_STACK_LIMIT = 5,
     SW_LUA_UNSUPPORTED = 6,
     SW_LUA_ENGINE_ERROR = 7,
-    SW_LUA_BUFFER_TOO_SMALL = 8
+    SW_LUA_BUFFER_TOO_SMALL = 8,
+    SW_LUA_CALL_FAILED = 9 // the called Lua function raised an error; the stack holds no result
 } SwLuaStatus;
 
 typedef enum SwLuaType {
@@ -61,6 +62,20 @@ typedef struct SwLuaExtrasApi {
     // terminates if capacity>0, preserves embedded NUL, reports truncation explicitly.
     SwLuaStatus (*copyString)(const SwModHost* owner, void* state, int index,
                              char* out, size_t capacity, size_t* length);
+
+    // ---- Appended: check structSize before reading -------------------------------------
+    // Pushes the global `name` (nil when absent). In an addon VM this reaches the game's
+    // own tables: getGlobal("server") then getField(-1, "announce").
+    SwLuaStatus (*getGlobal)(const SwModHost* owner, void* state, const char* name);
+    // Protected call, like lua_pcall without a message handler. The stack must hold the
+    // function followed by `argumentCount` arguments; they are all consumed. On SW_LUA_OK
+    // exactly `resultCount` results are pushed (missing ones are nil). On
+    // SW_LUA_CALL_FAILED nothing is pushed and the error message, when it is a string, is
+    // copied to errorOut (truncated, NUL-terminated; errorOut may be NULL with capacity 0).
+    // A Lua error never unwinds plugin frames. Both counts are limited to 0..255.
+    // SW_LUA_UNSUPPORTED when the protected call is not certified for the running build.
+    SwLuaStatus (*call)(const SwModHost* owner, void* state, int argumentCount, int resultCount,
+                        char* errorOut, size_t errorCapacity);
 } SwLuaExtrasApi;
 #ifdef __cplusplus
 }

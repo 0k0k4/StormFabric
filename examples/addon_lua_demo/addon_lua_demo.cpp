@@ -3,6 +3,7 @@
 // the `sf_demo` global table. Requires SW_CAP_LUA_ADDON (newer reviewed build only).
 #include "../../include/sw_mod_sdk.h"
 #include <stdio.h>
+#include <string.h>
 
 static const SwModHost* g_host = nullptr;
 static unsigned g_pings = 0;
@@ -26,6 +27,53 @@ static int Log(void* L, void*) {
     return 0;
 }
 
+// Pushes server.<name> (the game's own API function), leaving `server` below it.
+static bool PushServerFunction(void* L, const char* name) {
+    const SwLuaExtrasApi* x = g_host->api->lua->extras;
+    if (x->getGlobal(g_host, L, "server") != SW_LUA_OK) return false;
+    if (x->getField(g_host, L, -1, name) == SW_LUA_OK) return true;
+    x->pop(g_host, L, 1);
+    return false;
+}
+
+// sf_demo.announce(text) -> true/false. The DLL itself calls server.announce(...).
+static int Announce(void* L, void*) {
+    const SwLuaApi* lua = g_host->api->lua;
+    const SwLuaExtrasApi* x = lua->extras;
+    char text[256], error[256];
+    lua->argString(L, 1, text, sizeof(text));
+    bool ok = false;
+    if (lua->checkStack(L, 6) && PushServerFunction(L, "announce")) {
+        x->pushString(g_host, L, "StormFabric native", 18);
+        x->pushString(g_host, L, text, strlen(text));
+        ok = x->call(g_host, L, 2, 0, error, sizeof(error)) == SW_LUA_OK;
+        if (!ok) g_host->log(g_host->modId, error);
+        x->pop(g_host, L, 1); // server
+    }
+    lua->pushBool(L, ok);
+    return 1;
+}
+
+// sf_demo.hostName() -> name of peer 0, read by the DLL through server.getPlayerName(0).
+static int HostName(void* L, void*) {
+    const SwLuaApi* lua = g_host->api->lua;
+    const SwLuaExtrasApi* x = lua->extras;
+    char name[128] = "", error[256];
+    size_t length = 0;
+    if (lua->checkStack(L, 6) && PushServerFunction(L, "getPlayerName")) {
+        x->pushInteger(g_host, L, 0);
+        if (x->call(g_host, L, 1, 1, error, sizeof(error)) == SW_LUA_OK) {
+            x->copyString(g_host, L, -1, name, sizeof(name), &length);
+            x->pop(g_host, L, 1); // result
+        } else g_host->log(g_host->modId, error);
+        x->pop(g_host, L, 1); // server
+    }
+    char line[200];
+    snprintf(line, sizeof(line), "server.getPlayerName(0) called from C++ -> '%s'", name);
+    g_host->log(g_host->modId, line);
+    return x->pushString(g_host, L, name, strlen(name)) == SW_LUA_OK ? 1 : 0;
+}
+
 static void OnVm(const SwEvent* event, void*) {
     g_host->log(g_host->modId, event->type == SW_EVENT_ADDON_LUA_CREATED
         ? "Addon script VM created (sf_demo installed)" : "Addon script VM destroyed/reloaded");
@@ -44,8 +92,11 @@ SW_MOD_EXPORT bool SwModInit(const SwModHost* host) {
         return false;
     }
     g_host = host;
-    SwLuaFunction functions[] = {{"ping", &Ping, nullptr}, {"log", &Log, nullptr}};
-    if (!lua->registerAddonLibrary(host, "sf_demo", functions, 2)) {
+    SwLuaFunction functions[] = {{"ping", &Ping, nullptr}, {"log", &Log, nullptr},
+                                 {"announce", &Announce, nullptr}, {"hostName", &HostName, nullptr}};
+    // getGlobal/call are appended extras: without them only ping/log are offered.
+    const bool canCall = lua->extras->structSize >= offsetof(SwLuaExtrasApi, call) + sizeof(lua->extras->call);
+    if (!lua->registerAddonLibrary(host, "sf_demo", functions, canCall ? 4 : 2)) {
         g_host = nullptr;
         return false;
     }
