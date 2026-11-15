@@ -15,6 +15,7 @@ bool ValidateQolEditorProfile(uint8_t*) { return false; }
 bool ResolveAddonLuaProfile(uint8_t*, AddonLuaProfile*) { return false; }
 void* ResolveLuaPcallk(uint8_t*) { return nullptr; }
 bool ResolveSimulationTickProfile(uint8_t*, SimulationTickProfile*) { return false; }
+void* ResolveGameEventProfile(uint8_t*) { return nullptr; }
 std::vector<std::pair<SwEventType,SwHandle>> lifecycleEvents;
 void QueueModLuaEvent(SwEventType type,SwHandle id) {lifecycleEvents.emplace_back(type,id);}
 }
@@ -308,6 +309,40 @@ void FakeClosure(uintptr_t lua, void* fn, int upvalues) {
     top->tag = 0x66;
 }
 alignas(16) uint8_t addonScript[0x90] = {};
+// ---- game event fixtures ----
+struct FakeValue { int32_t type; uint8_t pad[0x84]; double number; int64_t i90; int64_t i98; const char* text; uint8_t pad2[8]; uint8_t boolean; uint8_t pad3[7]; };
+static_assert(sizeof(FakeValue) == 0xb8 && offsetof(FakeValue, number) == 0x88 && offsetof(FakeValue, i98) == 0x98 &&
+              offsetof(FakeValue, text) == 0xa0 && offsetof(FakeValue, boolean) == 0xb0, "game value layout");
+struct SeenEvent { std::string name; std::vector<SwGameValue> values; std::vector<std::string> texts; void* state; uint64_t sequence; };
+std::vector<SeenEvent> events;
+int originalCalls = 0;
+uint64_t FakeCallByName(uintptr_t, EStr*, GameArgRing*) { ++originalCalls; return 0xabcd01; }
+void OnEvent(const SwGameEvent* event, void* data) {
+    assert(event->structSize == sizeof(SwGameEvent) && data == reinterpret_cast<void*>(0x55));
+    SeenEvent seen{event->name, {}, {}, event->luaState, event->sequence};
+    for (uint32_t i = 0; i < event->argumentCount; ++i) {
+        seen.values.push_back(event->arguments[i]);
+        seen.texts.push_back(event->arguments[i].string ? event->arguments[i].string : "");
+    }
+    events.push_back(seen);
+    // The receiving VM is usable through lua->extras; what the mod leaves is dropped.
+    if (event->luaState == state) { // only the main fake state implements the Lua natives
+        assert(api->pushNil(&owner, event->luaState) == SW_LUA_OK);
+        assert(api->pushNil(&otherOwner, event->luaState) == SW_LUA_INVALID_CONTEXT);
+    }
+}
+int filteredEvents = 0;
+void OnlyJoin(const SwGameEvent* event, void*) { assert(!strcmp(event->name, "onPlayerJoin")); ++filteredEvents; }
+void CrashEvent(const SwGameEvent*, void*) { *(volatile int*)nullptr = 1; }
+uint64_t CallEvent(uintptr_t target, const char* name, std::vector<FakeValue>& values, uint32_t head = 0) {
+    EStr text{const_cast<char*>(name), static_cast<uint32_t>(strlen(name)), 0};
+    const uint32_t capacity = static_cast<uint32_t>(values.size()) + head;
+    std::vector<FakeValue> ring(capacity ? capacity : 1);
+    for (size_t i = 0; i < values.size(); ++i) ring[(head + i) % capacity] = values[i];
+    GameArgRing args{reinterpret_cast<uint8_t*>(ring.data()), capacity, head, static_cast<uint32_t>(values.size())};
+    return HkCallByName(target, &text, &args);
+}
+FakeValue Value(int32_t type) { FakeValue v{}; v.type = type; return v; }
 // ---- simulation tick fixtures ----
 std::vector<std::pair<uint64_t, void*>> ticks;
 int tickPushes = 0;
@@ -532,6 +567,99 @@ int main() {
     RunSimulationTick();
     assert(ticks.size() == beforeRelease); // released owners are never called again
     assert(swml::UnsubscribeSimulationTick(&owner, tickHandle) == SW_NOT_FOUND);
+
+    // ---- Game events --------------------------------------------------------------------
+    SwHandle eventHandle = 0;
+    assert(swml::SubscribeGameEvent(&owner, "onTick", &OnEvent, nullptr, &eventHandle) == SW_INVALID_ARGUMENT);
+    assert(swml::SubscribeGameEvent(&owner, "onDraw", &OnEvent, nullptr, &eventHandle) == SW_INVALID_ARGUMENT);
+    assert(swml::SubscribeGameEvent(&owner, "player", &OnEvent, nullptr, &eventHandle) == SW_INVALID_ARGUMENT);
+    assert(swml::SubscribeGameEvent(&owner, "onBad.name", &OnEvent, nullptr, &eventHandle) == SW_INVALID_ARGUMENT);
+    assert(swml::SubscribeGameEvent(&owner, nullptr, nullptr, nullptr, &eventHandle) == SW_INVALID_ARGUMENT);
+    assert(swml::SubscribeGameEvent(nullptr, nullptr, &OnEvent, nullptr, &eventHandle) == SW_INVALID_OWNER);
+    assert(swml::SubscribeGameEvent(&owner, nullptr, &OnEvent, nullptr, &eventHandle) == SW_UNAVAILABLE); // profile rejected
+    g_origCallByName = &FakeCallByName;
+    std::vector<FakeValue> none;
+    // No subscription: the hook only forwards, and returns the original result untouched.
+    assert(CallEvent(addonSelf, "onPlayerJoin", none) == 0xabcd01 && originalCalls == 1 && events.empty());
+    g_eventInstalled = true; // the entry patch itself is covered by lua_profile_tests
+    swml::ReleaseNativeLuaOwner(&owner); swml::ReleaseNativeLuaOwner(&otherOwner);
+    assert(swml::SubscribeGameEvent(&owner, nullptr, &OnEvent, reinterpret_cast<void*>(0x55), &eventHandle) == SW_OK);
+    alignas(16) static uint8_t addonB[0x90] = {}, addonC[0x90] = {}, mcScript[0x90] = {};
+    alignas(16) static uint8_t stateB[0x100] = {}, stateC[0x100] = {}, stateM[0x100] = {};
+    ResetState(); g_liveLuaVms.clear();
+    const uintptr_t sB = reinterpret_cast<uintptr_t>(addonB), sC = reinterpret_cast<uintptr_t>(addonC), sM = reinterpret_cast<uintptr_t>(mcScript);
+    *(uintptr_t*)(addonSelf + 8) = L;
+    *(uintptr_t*)(sB + 8) = reinterpret_cast<uintptr_t>(stateB);
+    *(uintptr_t*)(sC + 8) = reinterpret_cast<uintptr_t>(stateC);
+    *(uintptr_t*)(sM + 8) = reinterpret_cast<uintptr_t>(stateM);
+    g_liveLuaVms[L] = {addonSelf, 90, true};
+    g_liveLuaVms[reinterpret_cast<uintptr_t>(stateB)] = {sB, 91, true};
+    g_liveLuaVms[reinterpret_cast<uintptr_t>(stateC)] = {sC, 92, true};
+    g_liveLuaVms[reinterpret_cast<uintptr_t>(stateM)] = {sM, 93, false}; // microcontroller VM
+    // All six value types decode, with the ring's head offset honoured.
+    std::vector<FakeValue> join = {Value(0), Value(1), Value(2), Value(3), Value(4), Value(5)};
+    join[0].number = 2.5; join[1].i90 = -1; join[2].text = "Moi"; join[3].boolean = 1; join[4].i98 = 76561198000000000ll;
+    assert(CallEvent(addonSelf, "onPlayerJoin", join, 2) == 0xabcd01);
+    assert(events.size() == 1 && events[0].name == "onPlayerJoin" && events[0].state == state);
+    const auto& v = events[0].values;
+    assert(v.size() == 6 && v[0].type == SW_GAME_VALUE_NUMBER && v[0].number == 2.5);
+    assert(v[1].type == SW_GAME_VALUE_INTEGER && v[1].integer == -1 && v[1].number == -1.0);
+    assert(v[2].type == SW_GAME_VALUE_STRING && events[0].texts[2] == "Moi" && v[2].length == 3);
+    assert(v[3].type == SW_GAME_VALUE_BOOLEAN && v[3].boolean);
+    assert(v[4].type == SW_GAME_VALUE_INTEGER && v[4].integer == 76561198000000000ll);
+    assert(v[5].type == SW_GAME_VALUE_TABLE);
+    assert(*(uintptr_t*)(L + 0x10) == reinterpret_cast<uintptr_t>(stack + 1) && g_luaCallbackFrame == nullptr);
+    // The same event dispatched to the other addon scripts is not delivered again...
+    *(uintptr_t*)(reinterpret_cast<uintptr_t>(stateB) + 0x10) = *(uintptr_t*)(reinterpret_cast<uintptr_t>(stateB) + 0x38);
+    assert(CallEvent(sB, "onPlayerJoin", join) == 0xabcd01 && CallEvent(sC, "onPlayerJoin", join) == 0xabcd01);
+    assert(events.size() == 1);
+    // ...but the same content dispatched again starts a new event (script repeats).
+    assert(CallEvent(addonSelf, "onPlayerJoin", join) && events.size() == 2 && events[1].sequence == events[0].sequence + 1);
+    CallEvent(sB, "onPlayerJoin", join);
+    assert(events.size() == 2);
+    // Different content is a different event, even for the next script in the round.
+    join[2].text = "Other";
+    CallEvent(sC, "onPlayerJoin", join);
+    assert(events.size() == 3 && events[2].texts[2] == "Other" && events[2].state == stateC);
+    // Microcontrollers, frame callbacks and unknown scripts never produce events.
+    std::vector<FakeValue> tickArgs = {Value(1)};
+    const int callsBefore = originalCalls;
+    CallEvent(sM, "onPlayerJoin", join);
+    CallEvent(addonSelf, "onTick", tickArgs);
+    CallEvent(addonSelf, "onDraw", none);
+    CallEvent(reinterpret_cast<uintptr_t>(addonScript) + 1, "onChatMessage", join);
+    assert(events.size() == 3 && originalCalls == callsBefore + 4); // still forwarded to the game
+    // Name filters, unsubscribe, crash isolation.
+    SwHandle joinHandle = 0, eventCrash = 0;
+    assert(swml::SubscribeGameEvent(&otherOwner, "onPlayerJoin", &OnlyJoin, nullptr, &joinHandle) == SW_OK);
+    CallEvent(addonSelf, "onVehicleSpawn", tickArgs);
+    assert(events.size() == 4 && filteredEvents == 0);
+    join[2].text = "Third";
+    CallEvent(addonSelf, "onPlayerJoin", join);
+    assert(events.size() == 5 && filteredEvents == 1);
+    assert(swml::UnsubscribeGameEvent(&owner, joinHandle) == SW_NOT_FOUND);
+    assert(swml::UnsubscribeGameEvent(&otherOwner, joinHandle) == SW_OK);
+    assert(swml::UnsubscribeGameEvent(&otherOwner, joinHandle) == SW_NOT_FOUND);
+    assert(swml::SubscribeGameEvent(&otherOwner, "onChatMessage", &CrashEvent, nullptr, &eventCrash) == SW_OK);
+    std::vector<FakeValue> chat = {Value(1), Value(2), Value(2)};
+    chat[1].text = "Moi"; chat[2].text = "hello";
+    CallEvent(addonSelf, "onChatMessage", chat);
+    assert(events.size() == 6 && events[5].texts[2] == "hello" && g_luaCallbackFrame == nullptr && g_eventDepth == 0);
+    assert(swml::UnsubscribeGameEvent(&otherOwner, eventCrash) == SW_NOT_FOUND); // disabled by its crash
+    // A broken ring is skipped, never dereferenced past its bounds.
+    EStr badName{const_cast<char*>("onPlayerLeave"), 13, 0};
+    GameArgRing broken{nullptr, 0, 0, 3};
+    HkCallByName(addonSelf, &badName, &broken);
+    GameArgRing overfull{reinterpret_cast<uint8_t*>(join.data()), 2, 0, 3};
+    HkCallByName(addonSelf, &badName, &overfull);
+    assert(events.size() == 6);
+    // Owner release stops delivery and keeps the subscription counter balanced.
+    swml::ReleaseNativeLuaOwner(&owner);
+    assert(g_eventSubscriptions.load() == 0);
+    join[2].text = "After";
+    CallEvent(addonSelf, "onPlayerJoin", join);
+    assert(events.size() == 6);
+    puts("PASS: game events; value decoding, one delivery per event, repeats, filters, MC/frame rejection, crash isolation, release");
     puts("PASS: simulation tick; argument forwarding, addon state selection, stack restore, self-unsubscribe, crash isolation, limits, release");
     puts("PASS: addon script VMs; scoped libraries, reserved names, QoL refusal, reload generations, lifecycle events");
     puts("PASS: getGlobal and protected call; context, bounds, types, raised error as status, truncated message");

@@ -38,7 +38,8 @@ no gameplay validation is claimed.
   Types are reserved in the append-only SDK, **not usable bindings**.
 - Simulation/world/entity/player subscriptions through `runtime->subscribe` return `SW_UNAVAILABLE`.
   A synchronous per-update tick is available separately on the newer build only
-  (`runtime->subscribeSimulationTick`, `SW_CAP_SIMULATION_TICK`, see `addon_lua.md`).
+  (`runtime->subscribeSimulationTick`, `SW_CAP_SIMULATION_TICK`), as are addon callback
+  events such as onPlayerJoin (`runtime->subscribeGameEvent`, `SW_CAP_GAME_EVENTS`); see `addon_lua.md`.
 - Simulation time returns `SW_UNAVAILABLE`, without changing the output.
 - World-scoped storage returns `SW_STORAGE_UNAVAILABLE`: no validated stable world ID.
 - UI roots for the main menu are unavailable: its full teardown contract is not

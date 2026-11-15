@@ -27,6 +27,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <atomic>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -66,10 +67,17 @@ struct LibraryFunction {
     // Simulation tick subscription: no library, never installed in a VM.
     SwSimulationTickCallback tick = nullptr;
     SwHandle handle = 0;
+    // Game event subscription: `library` holds the callback name filter ("" = every event).
+    SwGameEventCallback event = nullptr;
 };
 // Tokens are loader-owned and retained: Lua closures can outlive a plugin or its host.
 std::vector<std::unique_ptr<LibraryFunction>> g_libraryFunctions;
 std::recursive_mutex g_libraryMutex;
+// Lock-free fast path for the call_by_name hook: no subscription, no work.
+std::atomic<int> g_eventSubscriptions{0};
+void ReleaseGameEventEntry(LibraryFunction* entry) {
+    if (entry->event) { entry->event = nullptr; --g_eventSubscriptions; }
+}
 void ApplyRegisteredLibraries(uintptr_t self, bool addon);
 
 // `addon` VMs belong to c_playlist_lua_script: their `self` has none of the
@@ -1598,6 +1606,255 @@ SwResult swml::SubscribeSimulationTick(const SwModHost* owner, SwSimulationTickC
     return SW_OK;
 }
 
+// ---- Game events ----------------------------------------------------------------------------
+// Every Lua callback of every script class goes through call_by_name(script, EStr* name,
+// ArgRing* args) (profile kCallByName). For one game event the game calls it once per addon
+// script, each time with a freshly built but identical argument ring. The hook delivers the
+// event to mods for the first addon script and skips the identical copies that follow; an
+// event starts again when the arguments change or a script receives the same name twice.
+namespace {
+struct GameArgRing { uint8_t* items; uint32_t capacity; uint32_t head; uint32_t count; };
+constexpr size_t kGameValueSize = 0xb8;   // element stride in the ring (see body: imul r8,rcx,0xb8)
+constexpr size_t kMaxEventArguments = 32;
+constexpr size_t kMaxEventText = 1023;
+constexpr int kMaxEventDepth = 4;
+constexpr size_t kEventPerOwnerLimit = 64;
+using CallByNameFn = uint64_t (*)(uintptr_t script, EStr* name, GameArgRing* args);
+CallByNameFn g_origCallByName = nullptr; // trampoline: original first instruction + jump back
+bool g_eventInstalled = false;
+uint64_t g_eventSequence = 0;
+SwHandle g_nextEventHandle = 0x5500000000000001ull;
+thread_local int g_eventDepth = 0;
+struct EventRound { std::string key; std::vector<uintptr_t> scripts; };
+std::map<std::string, EventRound> g_eventRounds;
+
+// Raw, SEH-protected copy of the ring (no C++ objects in the guarded frame).
+struct RawGameValue { int32_t type; double number; int64_t integer90, integer98; uint8_t boolean;
+                      char text[kMaxEventText + 1]; size_t textLength; };
+struct RawGameArgs { uint32_t count; RawGameValue values[kMaxEventArguments]; };
+thread_local RawGameArgs g_rawArgs;
+
+bool ReadRawGameArgs(const GameArgRing* ring, RawGameArgs* out) {
+    __try {
+        out->count = 0;
+        if (!ring) return false;
+        const uint32_t capacity = ring->capacity, count = ring->count;
+        if (!count) return true;
+        if (!ring->items || !capacity || count > capacity) return false;
+        out->count = count < kMaxEventArguments ? count : static_cast<uint32_t>(kMaxEventArguments);
+        for (uint32_t i = 0; i < out->count; ++i) {
+            const uint8_t* item = ring->items + static_cast<size_t>((ring->head + i) % capacity) * kGameValueSize;
+            RawGameValue& value = out->values[i];
+            value.type = *reinterpret_cast<const int32_t*>(item);
+            value.number = *reinterpret_cast<const double*>(item + 0x88);
+            value.integer90 = *reinterpret_cast<const int64_t*>(item + 0x90);
+            value.integer98 = *reinterpret_cast<const int64_t*>(item + 0x98);
+            value.boolean = *(item + 0xb0);
+            value.textLength = 0;
+            value.text[0] = 0;
+            if (value.type == 2) {
+                const char* text = *reinterpret_cast<const char* const*>(item + 0xa0);
+                if (text) {
+                    while (value.textLength < kMaxEventText && text[value.textLength]) {
+                        value.text[value.textLength] = text[value.textLength];
+                        ++value.textLength;
+                    }
+                    value.text[value.textLength] = 0;
+                }
+            }
+        }
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+bool ReadEventName(const EStr* name, const char** data, uint32_t* length) {
+    __try {
+        if (!name || !name->data || name->len < 3 || name->len > 63) return false;
+        *data = name->data; *length = name->len;
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+uintptr_t ReadScriptState(uintptr_t script) {
+    __try { return *(uintptr_t*)(script + 8); }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return 0; }
+}
+// Callbacks of microcontrollers, monitors and component scripts, and onTick (covered by
+// the simulation tick): rejected without taking the lock, they run every frame.
+bool IsFrameCallback(const char* data, size_t length) {
+    static const char* const names[] = {"onTick", "onDraw", "onParse", "onRender",
+                                        "onAddToSimulation", "onRemoveFromSimulation"};
+    for (const char* name : names) if (strlen(name) == length && memcmp(name, data, length) == 0) return true;
+    return false;
+}
+bool InvokeEventCpp(SwGameEventCallback fn, const SwGameEvent* event, void* data) {
+    try { fn(event, data); return true; } catch (...) { return false; }
+}
+bool SafeEventCallback(SwGameEventCallback fn, const SwGameEvent* event, void* data) {
+    __try { return InvokeEventCpp(fn, event, data); }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+
+void DeliverGameEvent(uintptr_t script, const std::string& name, const GameArgRing* args) {
+    std::lock_guard<std::recursive_mutex> lock(g_libraryMutex);
+    const uintptr_t state = ReadScriptState(script);
+    auto vm = g_liveLuaVms.find(state);
+    if (!state || vm == g_liveLuaVms.end() || !vm->second.addon || vm->second.self != script) return;
+    std::vector<LibraryFunction*> subscribers;
+    for (const auto& e : g_libraryFunctions)
+        if (e->owner && e->event && (e->library.empty() || e->library == name)) subscribers.push_back(e.get());
+    if (subscribers.empty()) return;
+    RawGameArgs& raw = g_rawArgs;
+    if (!ReadRawGameArgs(args, &raw)) return;
+    std::string key;
+    for (uint32_t i = 0; i < raw.count; ++i) {
+        const RawGameValue& v = raw.values[i];
+        key.append(reinterpret_cast<const char*>(&v.type), sizeof(v.type));
+        switch (v.type) {
+        case 0: key.append(reinterpret_cast<const char*>(&v.number), sizeof(v.number)); break;
+        case 1: key.append(reinterpret_cast<const char*>(&v.integer90), sizeof(v.integer90)); break;
+        case 2: key.append(v.text, v.textLength); key.push_back('\0'); break;
+        case 3: key.push_back(static_cast<char>(v.boolean != 0)); break;
+        case 4: key.append(reinterpret_cast<const char*>(&v.integer98), sizeof(v.integer98)); break;
+        default: break;
+        }
+    }
+    EventRound& round = g_eventRounds[name];
+    const bool seen = std::find(round.scripts.begin(), round.scripts.end(), script) != round.scripts.end();
+    if (round.key == key && !seen && !round.scripts.empty()) { round.scripts.push_back(script); return; }
+    round.key = key;
+    round.scripts.assign(1, script);
+
+    SwGameValue values[kMaxEventArguments] = {};
+    for (uint32_t i = 0; i < raw.count; ++i) {
+        const RawGameValue& v = raw.values[i];
+        SwGameValue& out = values[i];
+        switch (v.type) {
+        case 0: out.type = SW_GAME_VALUE_NUMBER; out.number = v.number; break;
+        case 1: out.type = SW_GAME_VALUE_INTEGER; out.integer = v.integer90; out.number = static_cast<double>(v.integer90); break;
+        case 4: out.type = SW_GAME_VALUE_INTEGER; out.integer = v.integer98; out.number = static_cast<double>(v.integer98); break;
+        case 2: out.type = SW_GAME_VALUE_STRING; out.string = v.text; out.length = v.textLength; break;
+        case 3: out.type = SW_GAME_VALUE_BOOLEAN; out.boolean = v.boolean != 0; break;
+        default: out.type = SW_GAME_VALUE_TABLE; break;
+        }
+    }
+    const SwGameEvent event{sizeof(SwGameEvent), name.c_str(), raw.count, values, ++g_eventSequence,
+                            reinterpret_cast<void*>(state)};
+    for (LibraryFunction* entry : subscribers) {
+        if (!entry->owner || !entry->event) continue; // unsubscribed by an earlier callback
+        LuaCallbackFrame frame{entry, state, vm->second.self, vm->second.generation};
+        LuaCallbackFrame* saved = g_luaCallbackFrame;
+        // The state may be inside a script: keep everything below, drop what the mod left.
+        const uintptr_t savedOffset = *(uintptr_t*)(state + 0x10) - *(uintptr_t*)(state + 0x38);
+        g_luaCallbackFrame = &frame;
+        ++g_eventDepth;
+        const bool ok = SafeEventCallback(entry->event, &event, entry->userData);
+        --g_eventDepth;
+        g_luaCallbackFrame = saved;
+        *(uintptr_t*)(state + 0x10) = *(uintptr_t*)(state + 0x38) + savedOffset;
+        if (!ok) {
+            ReleaseGameEventEntry(entry);
+            if (g_host && g_host->log) g_host->log("lua", "ERROR: plugin game event callback crashed; disabled");
+        }
+    }
+}
+
+uint64_t HkCallByName(uintptr_t script, EStr* name, GameArgRing* args) {
+    const char* data = nullptr;
+    uint32_t length = 0;
+    // Nested events (a mod answering through server.* may trigger another) are bounded.
+    if (g_eventSubscriptions.load(std::memory_order_relaxed) > 0 && g_eventDepth < kMaxEventDepth &&
+        ReadEventName(name, &data, &length) && !IsFrameCallback(data, length)) {
+        DeliverGameEvent(script, std::string(data, length), args);
+    }
+    return g_origCallByName(script, name, args);
+}
+
+// The first instruction (mov [rsp+8],rbx, 5 bytes) becomes a near jump to the thunk. The
+// entry is 16-byte aligned, so the 8 bytes holding the jump are replaced in one atomic write.
+bool InstallGameEvents() {
+    auto* target = static_cast<uint8_t*>(swml::ResolveGameEventProfile(g_base));
+    if (!target || reinterpret_cast<uintptr_t>(target) % 8) return false;
+    uint8_t* block = AllocateNearThunk(target);
+    if (!block) return false;
+    block[0] = 0xff; block[1] = 0x25;                       // jmp qword ptr [rip+0] -> hook
+    *reinterpret_cast<int32_t*>(block + 2) = 0;
+    *reinterpret_cast<uint64_t*>(block + 6) = reinterpret_cast<uint64_t>(&HkCallByName);
+    memcpy(block + 16, target, 5);                          // trampoline: original instruction
+    block[21] = 0xff; block[22] = 0x25;                     // jmp qword ptr [rip+0] -> target+5
+    *reinterpret_cast<int32_t*>(block + 23) = 0;
+    *reinterpret_cast<uint64_t*>(block + 27) = reinterpret_cast<uint64_t>(target + 5);
+    DWORD old = 0, ignored = 0;
+    VirtualProtect(block, 0x1000, PAGE_EXECUTE_READ, &old);
+    FlushInstructionCache(GetCurrentProcess(), block, 64);
+    const int64_t delta = reinterpret_cast<intptr_t>(block) - reinterpret_cast<intptr_t>(target + 5);
+    if (delta < INT32_MIN || delta > INT32_MAX) { VirtualFree(block, 0, MEM_RELEASE); return false; }
+    uint8_t patch[8];
+    patch[0] = 0xe9;
+    const int32_t rel = static_cast<int32_t>(delta);
+    memcpy(patch + 1, &rel, sizeof(rel));
+    memcpy(patch + 5, target + 5, 3);                       // keep the next instruction's bytes
+    g_origCallByName = reinterpret_cast<CallByNameFn>(block + 16); // published before the patch
+    if (!VirtualProtect(target, 8, PAGE_EXECUTE_READWRITE, &old)) return false;
+    LONG64 value = 0;
+    memcpy(&value, patch, sizeof(value));
+    InterlockedExchange64(reinterpret_cast<volatile LONG64*>(target), value);
+    VirtualProtect(target, 8, old, &ignored);
+    FlushInstructionCache(GetCurrentProcess(), target, 8);
+    return true;
+}
+bool IsEventName(const char* name) {
+    if (!name || name[0] != 'o' || name[1] != 'n' || name[2] < 'A' || name[2] > 'Z') return false;
+    size_t n = 0;
+    for (; name[n]; ++n) {
+        const char c = name[n];
+        if (n >= 63 || !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) return false;
+    }
+    return !IsFrameCallback(name, n);
+}
+}
+
+SwResult swml::SubscribeGameEvent(const SwModHost* owner, const char* name, SwGameEventCallback callback,
+                                  void* userData, SwHandle* out) {
+    if (!owner) return SW_INVALID_OWNER;
+    if (!callback || !out || (name && !IsEventName(name))) return SW_INVALID_ARGUMENT;
+    std::lock_guard<std::recursive_mutex> lock(g_libraryMutex);
+    if (!g_installed) return SW_UNAVAILABLE;
+    if (!g_eventInstalled) {
+        g_eventInstalled = InstallGameEvents();
+        if (g_host && g_host->log) g_host->log("lua", g_eventInstalled
+            ? "Game events: addon callback dispatch hooked (events start when a world runs)"
+            : "ERROR: Game events: profile rejected or hook failed; events unavailable");
+        if (!g_eventInstalled) return SW_UNAVAILABLE;
+    }
+    size_t count = 0;
+    for (const auto& e : g_libraryFunctions) if (e->owner == owner && e->event) ++count;
+    if (count >= kEventPerOwnerLimit) return SW_LIMIT_REACHED;
+    try {
+        auto entry = std::make_unique<LibraryFunction>();
+        entry->owner = owner;
+        entry->library = name ? name : "";
+        entry->event = callback;
+        entry->userData = userData;
+        entry->handle = g_nextEventHandle++;
+        *out = entry->handle;
+        g_libraryFunctions.push_back(std::move(entry));
+    } catch (...) { return SW_LIMIT_REACHED; }
+    ++g_eventSubscriptions;
+    return SW_OK;
+}
+
+SwResult swml::UnsubscribeGameEvent(const SwModHost* owner, SwHandle handle) {
+    if (!owner) return SW_INVALID_OWNER;
+    std::lock_guard<std::recursive_mutex> lock(g_libraryMutex);
+    for (auto& e : g_libraryFunctions) {
+        if (e->handle != handle || !e->event) continue;
+        if (e->owner != owner) return SW_NOT_FOUND;
+        ReleaseGameEventEntry(e.get());
+        e->owner = nullptr; e->userData = nullptr;
+        return SW_OK;
+    }
+    return SW_NOT_FOUND;
+}
+
 SwResult swml::UnsubscribeSimulationTick(const SwModHost* owner, SwHandle handle) {
     if (!owner) return SW_INVALID_OWNER;
     std::lock_guard<std::recursive_mutex> lock(g_libraryMutex);
@@ -1674,7 +1931,7 @@ namespace {
 bool HasLuaContext(void* state, const SwModHost* owner = nullptr) {
     const auto* frame = g_luaCallbackFrame;
     if (!g_installed || !state || !frame || frame->state != reinterpret_cast<uintptr_t>(state) ||
-        !frame->entry->owner || (!frame->entry->callback && !frame->entry->tick) ||
+        !frame->entry->owner || (!frame->entry->callback && !frame->entry->tick && !frame->entry->event) ||
         (owner && frame->entry->owner != owner)) return false;
     auto it = g_liveLuaVms.find(frame->state);
     return it != g_liveLuaVms.end() && it->second.self == frame->self &&
@@ -2165,7 +2422,10 @@ void swml::ReleaseNativeLuaOwner(const SwModHost* owner) {
     // Wait for an in-flight plugin Lua callback before allowing FreeLibrary.
     std::lock_guard<std::recursive_mutex> lock(g_libraryMutex);
     for (auto& e : g_libraryFunctions) {
-        if (e->owner == owner) { e->owner = nullptr; e->callback = nullptr; e->userData = nullptr; e->tick = nullptr; }
+        if (e->owner == owner) {
+            if (e->event) ReleaseGameEventEntry(e.get());
+            e->owner = nullptr; e->callback = nullptr; e->userData = nullptr; e->tick = nullptr;
+        }
     }
 }
 

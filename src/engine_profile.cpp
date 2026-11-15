@@ -115,6 +115,14 @@ bool ResolveSimulationTickProfile(uint8_t* base, SimulationTickProfile* out) {
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
+void* ResolveGameEventProfile(uint8_t* base) {
+    if (!base) return nullptr;
+    __try {
+        if (EngineBuild(base) != 2) return nullptr; // newer reviewed build only
+        return memcmp(base + kCallByName, kCallByNameBytes, sizeof(kCallByNameBytes)) == 0 ? base + kCallByName : nullptr;
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
+}
+bool ValidateGameEventProfile(uint8_t* base) { return ResolveGameEventProfile(base) != nullptr; }
 bool ValidateSimulationTickProfile(uint8_t* base) { SimulationTickProfile ignored; return ResolveSimulationTickProfile(base, &ignored); }
 void* ResolveLuaPcallk(uint8_t* base) {
     if (!base) return nullptr;

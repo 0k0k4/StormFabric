@@ -131,6 +131,18 @@ int main(int argc, char** argv) {
         }
         assert(swml::ValidateSimulationTickProfile(image.data()));
     }
+    // Game events: complete call_by_name body, 16-byte aligned 5-byte first instruction.
+    auto* callByName = static_cast<uint8_t*>(swml::ResolveGameEventProfile(image.data()));
+    assert((callByName != nullptr) == newerBuild && !swml::ValidateGameEventProfile(nullptr));
+    if (callByName) {
+        assert(reinterpret_cast<uintptr_t>(callByName) % 16 == 0 && callByName[0] == 0x48 && callByName[4] == 0x08);
+        for (size_t offset : {size_t(0), size_t(4), size_t(0xfc), size_t(0x2a0), size_t(695)}) { // entry, ring stride, jump table
+            callByName[offset] ^= 1;
+            assert(!swml::ValidateGameEventProfile(image.data()) && swml::ValidateLuaProfile(image.data()));
+            callByName[offset] ^= 1;
+        }
+        assert(swml::ValidateGameEventProfile(image.data()));
+    }
     // Protected call: newer build only, complete lua_pcallk body including its tail chunks.
     auto* pcallk = static_cast<uint8_t*>(swml::ResolveLuaPcallk(image.data()));
     assert((pcallk != nullptr) == newerBuild && !swml::ResolveLuaPcallk(nullptr));
@@ -184,6 +196,7 @@ int main(int argc, char** argv) {
     assert(!swml::ValidateAddonLuaProfile(image.data())); // wrong build identity
     assert(!swml::ResolveLuaPcallk(image.data()));
     assert(!swml::ValidateSimulationTickProfile(image.data()));
+    assert(!swml::ValidateGameEventProfile(image.data()));
     assert(!swml::ValidateVideoProfile(image.data()));
     assert(!swml::ValidateVideoProfile(nullptr));
     assert(!sw::ValidateIngameNotificationProfile(image.data()));

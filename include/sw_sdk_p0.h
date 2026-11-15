@@ -14,7 +14,8 @@ typedef enum SwCapability {
     SW_CAP_VEHICLES=1ull<<8, SW_CAP_PLAYERS=1ull<<9, SW_CAP_WORLD_STORAGE=1ull<<10,
     SW_CAP_LUA_EVENTS=1ull<<11, SW_CAP_LUA_QOL=1ull<<12,
     SW_CAP_LUA_ADDON=1ull<<13, // addon/mission script VMs: registerAddonLibrary + ADDON_LUA events
-    SW_CAP_SIMULATION_TICK=1ull<<14 // runtime->subscribeSimulationTick (does not imply SIMULATION_EVENTS)
+    SW_CAP_SIMULATION_TICK=1ull<<14, // runtime->subscribeSimulationTick (does not imply SIMULATION_EVENTS)
+    SW_CAP_GAME_EVENTS=1ull<<15      // runtime->subscribeGameEvent (addon callbacks such as onPlayerJoin)
 } SwCapability;
 typedef enum SwUiSurface { SW_SURFACE_MENU=0, SW_SURFACE_HUD=1, SW_SURFACE_EDITOR=2, SW_SURFACE_NONE=3 } SwUiSurface;
 typedef enum SwEventType {
@@ -52,6 +53,36 @@ typedef struct SwSimulationTick {
     void* luaState;
 } SwSimulationTick;
 typedef void (*SwSimulationTickCallback)(const SwSimulationTick* tick, void* userData);
+
+// A game event: one addon callback (onPlayerJoin, onVehicleSpawn, onCustomCommand...)
+// as the game dispatches it to addon scripts, delivered ONCE to the mod, before the
+// first addon script runs its own callback. onTick is excluded (use the simulation tick).
+typedef enum SwGameValueType {
+    SW_GAME_VALUE_NUMBER = 0,  // number (double)
+    SW_GAME_VALUE_INTEGER = 1, // integer (int64); `number` holds the same value
+    SW_GAME_VALUE_BOOLEAN = 2,
+    SW_GAME_VALUE_STRING = 3,
+    SW_GAME_VALUE_TABLE = 4    // a table (a matrix for onMeteor...); its content is not decoded
+} SwGameValueType;
+typedef struct SwGameValue {
+    SwGameValueType type;
+    bool boolean;
+    double number;
+    int64_t integer;
+    const char* string; // NUL-terminated copy, valid during the callback only (NULL otherwise)
+    size_t length;
+} SwGameValue;
+typedef struct SwGameEvent {
+    uint32_t structSize;
+    const char* name;              // callback name, valid during the callback only
+    uint32_t argumentCount;        // arguments the addon callback receives (at most 32)
+    const SwGameValue* arguments;
+    uint64_t sequence;             // loader count of delivered game events
+    // The addon VM receiving the event, usable with lua->extras during the callback only
+    // (to answer through server.*). It may be running a script: only push/pop on top.
+    void* luaState;
+} SwGameEvent;
+typedef void (*SwGameEventCallback)(const SwGameEvent* event, void* userData);
 typedef struct SwRuntimeApi {
     uint32_t structSize;
     uint64_t (*capabilities)(void);
@@ -68,6 +99,11 @@ typedef struct SwRuntimeApi {
     // native UI calls are refused there; use runOnGameThread to hand work over.
     SwResult (*subscribeSimulationTick)(const SwModHost*, SwSimulationTickCallback, void* userData, SwHandle* out);
     SwResult (*unsubscribeSimulationTick)(const SwModHost*, SwHandle);
+    // Appended: check structSize. SW_UNAVAILABLE unless SW_CAP_GAME_EVENTS is set.
+    // name: exact callback name ("onPlayerJoin"), or NULL for every event; "onTick" is
+    // refused. Runs on the simulation thread, like the simulation tick.
+    SwResult (*subscribeGameEvent)(const SwModHost*, const char* name, SwGameEventCallback, void* userData, SwHandle* out);
+    SwResult (*unsubscribeGameEvent)(const SwModHost*, SwHandle);
 } SwRuntimeApi;
 typedef struct SwActionState { bool down,pressed,released; uint64_t sequence; } SwActionState;
 enum { SW_KEY_CTRL=1, SW_KEY_SHIFT=2, SW_KEY_ALT=4 };

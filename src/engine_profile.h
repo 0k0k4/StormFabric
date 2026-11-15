@@ -26,4 +26,8 @@ void* ResolveLuaPcallk(uint8_t* base);
 struct SimulationTickProfile { void* update; uint8_t* sites[3]; };
 bool ResolveSimulationTickProfile(uint8_t* base, SimulationTickProfile* out);
 bool ValidateSimulationTickProfile(uint8_t* base);
+// Optional game events: call_by_name(script, EStr* name, ArgRing* args), through which
+// every addon callback is called. Newer reviewed build only; complete body required.
+void* ResolveGameEventProfile(uint8_t* base);
+bool ValidateGameEventProfile(uint8_t* base);
 }

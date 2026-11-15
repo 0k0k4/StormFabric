@@ -153,7 +153,65 @@ chargement du monde et a appelé `server.announce` depuis le tick ; son compteur
 était identique à celui d'un `onTick` d'addon (808 = 808). Non vérifié en jeu :
 comportement en pause, en multijoueur et pendant un rechargement de scripts.
 
-## Événements
+## Événements du jeu : `runtime->subscribeGameEvent`
+
+Un mod peut réagir aux callbacks d'addon du jeu (`onPlayerJoin`, `onVehicleSpawn`,
+`onCustomCommand`, `onChatMessage`, `onToggleMap`, `onPlayerSit`…), sans script :
+
+```cpp
+static void OnEvent(const SwGameEvent* event, void* userData) {
+    // onCustomCommand(full_message, peer_id, is_admin, is_auth, command, ...)
+    if (!strcmp(event->name, "onCustomCommand") && event->argumentCount >= 5 &&
+        event->arguments[4].type == SW_GAME_VALUE_STRING && !strcmp(event->arguments[4].string, "?hello")) {
+        // répondre via event->luaState : getGlobal("server"), getField("announce"), call...
+    }
+}
+
+// Dans SwModInit (membres ajoutés en fin de SwRuntimeApi : vérifier structSize) :
+if (runtime->capabilities() & SW_CAP_GAME_EVENTS) {
+    SwHandle handle = 0;
+    runtime->subscribeGameEvent(host, "onCustomCommand", &OnEvent, nullptr, &handle); // NULL = tous
+}
+```
+
+- **Une livraison par événement.** Le jeu appelle le callback une fois par script
+  d'addon ; le mod reçoit l'événement **une seule fois**, avant que le premier
+  script exécute son propre callback.
+- **Arguments** : ceux que reçoit le callback Lua, décodés dans
+  `SwGameEvent::arguments` (32 au plus) : nombre, entier (64 bits, aussi recopié dans
+  `number`), booléen, chaîne (copie terminée par NUL, 1023 octets au plus, valable
+  pendant le callback) ou table (une matrice pour `onMeteor`…, contenu non décodé).
+- **`luaState`** : la VM d'addon qui reçoit l'événement, utilisable avec
+  `lua->extras` pendant le callback pour répondre par `server.*`. Elle peut être en
+  train d'exécuter un script : se limiter à empiler et dépiler au-dessus. Ce que le
+  callback laisse sur la pile est retiré par le loader.
+- **Exclus** : `onTick` (utiliser le tick de simulation) et les callbacks des
+  microcontrôleurs, moniteurs et composants (`onDraw`, `onParse`, `onRender`,
+  `onAddToSimulation`, `onRemoveFromSimulation`).
+- **Thread** : celui de la simulation, comme le tick. 64 abonnements au plus par mod ;
+  un callback qui plante est désactivé et journalisé. Un événement déclenché depuis un
+  callback d'événement est livré, sur 4 niveaux d'imbrication au plus.
+
+**Mécanisme.** Tous les callbacks Lua du jeu passent par une même fonction,
+`call_by_name(script, nom, arguments)` (`0x1e2010`, 696 octets) : elle cherche la
+fonction Lua, pousse une liste d'arguments typés (anneau d'éléments de `0xb8` octets,
+six types via une table de saut) puis l'appelle. Pour un événement, le jeu parcourt
+les scripts d'addon et l'appelle une fois par script avec des arguments identiques.
+Le loader remplace sa première instruction (5 octets, adresse alignée sur 16) par un
+saut, en une écriture atomique de 8 octets, après avoir vérifié le corps complet. Il
+livre l'événement pour le premier script, puis ignore les copies identiques ; un
+nouvel événement commence quand les arguments changent ou qu'un script reçoit deux
+fois le même nom. Limite connue : deux événements identiques envoyés chacun à un seul
+addon différent, à la suite, sont fusionnés.
+
+**Vérifié en jeu le 2026-11-15** : `onPlayerJoin`, `onVehicleSpawn` (joueur et IA),
+`onCustomCommand`, `onToggleMap`, `onCreate`, `onObjectLoad`, `onVehicleLoad`,
+`onGroupSpawn` et `onSpawnAddonComponent` ont été reçus avec leurs arguments ;
+`onCreate`, envoyé à 17 scripts, n'a été livré qu'une fois ; le mod a répondu dans le
+chat à `?cpp`, à l'ouverture de la carte et à l'apparition d'un véhicule. Les autres
+callbacks n'ont pas été déclenchés pendant le test.
+
+## Événements de VM
 
 `SW_EVENT_ADDON_LUA_CREATED` et `SW_EVENT_ADDON_LUA_DESTROYED` s'abonnent par
 `runtime->subscribe`. Ils portent une génération opaque dans `handle`, sont livrés
