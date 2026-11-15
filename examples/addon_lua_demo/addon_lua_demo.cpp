@@ -85,29 +85,7 @@ static int Ticks(void* L, void*) {
     return 1;
 }
 
-static void OnTick(const SwSimulationTick* tick, void*) {
-    ++g_ticks;
-    if (g_ticks == 1) {
-        char line[160];
-        snprintf(line, sizeof(line), "first simulation tick: sequence=%llu, luaState=%s, UI thread=%s",
-                 static_cast<unsigned long long>(tick->sequence), tick->luaState ? "yes" : "no",
-                 g_host->api->runtime->isGameThread() ? "yes" : "no");
-        g_host->log(g_host->modId, line);
-    }
-    if (g_ticks % 600 || !tick->luaState) return;
-    // Every 600 ticks: call the game's API from the tick itself.
-    void* L = tick->luaState;
-    const SwLuaApi* lua = g_host->api->lua;
-    const SwLuaExtrasApi* x = lua->extras;
-    char text[160], error[256];
-    snprintf(text, sizeof(text), "C++ tick #%llu (no script involved)", static_cast<unsigned long long>(g_ticks));
-    if (lua->checkStack(L, 6) && PushServerFunction(L, "announce")) {
-        x->pushString(g_host, L, "StormFabric tick", 16);
-        x->pushString(g_host, L, text, strlen(text));
-        if (x->call(g_host, L, 2, 0, error, sizeof(error)) != SW_LUA_OK) g_host->log(g_host->modId, error);
-    }
-    g_host->log(g_host->modId, text); // the loader restores the stack after the callback
-}
+static void OnTick(const SwSimulationTick*, void*) { ++g_ticks; }
 
 // ---- Game events: the DLL reacts to addon callbacks, without any script ----------------
 static bool ServerAnnounce(void* L, const char* title, const char* text) {
