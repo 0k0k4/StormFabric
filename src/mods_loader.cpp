@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "../include/sw_mod_sdk.h"
+#include "content_overlay.h"
 #include "log.h"
 #include "engine_api.h"
 
@@ -277,7 +278,8 @@ void SyncLoadedMods(std::vector<ModEntry>& mods, void* gameBase, void* uiCtx, vo
         }
         if (!m.enabled) {
             m.loadState = ModLoadState::Unloaded;
-            m.statusDetail = "DISABLED";
+            // Disabling cannot withdraw content already overlaid on rom\ until a restart.
+            m.statusDetail = ContentOverlayActive(m.name) ? "RESTART" : "DISABLED";
             continue;
         }
 
@@ -430,6 +432,14 @@ void SyncLoadedMods(std::vector<ModEntry>& mods, void* gameBase, void* uiCtx, vo
                     std::remove(g_loadedOrder.begin(), g_loadedOrder.end(), key),
                     g_loadedOrder.end());
             }
+            continue;
+        }
+
+        // Mod de contenu seul : rien à charger, son contenu est superposé à rom\ au démarrage.
+        if (!m.HasDll()) {
+            m.loadState = ModLoadState::Loaded;
+            m.statusDetail = ContentOverlayActive(m.name) ? "CONTENT" : "RESTART";
+            ClearIssueState(m);
             continue;
         }
 

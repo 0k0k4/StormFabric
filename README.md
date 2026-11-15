@@ -110,6 +110,7 @@ Pre-compiled examples are generated in `build/examples/`:
 | --- | --- |
 | [`p0_demo`](examples/p0_demo/README.md) | Native HUD panel, F8 toggle, storage roundtrips, and SDK check suite |
 | [`native_api_demo`](examples/native_api_demo) | Custom `sw_demo` Lua library exposed to microcontrollers |
+| [`content_demo`](examples/content_demo) | Content-only mod adding a component (generated from your game files) |
 | [`addon_lua_demo`](examples/addon_lua_demo) | `sf_demo` library for addon scripts, with a sample `script.lua` |
 | [`mc_lua_qol`](examples/mc_lua_qol) | Quality-of-life mathematical and utility functions for microcontroller Lua |
 | [`video_fx`](docs/video_fx.md) | Native monitor post-processing shaders and frame capture |
@@ -214,6 +215,7 @@ The offline unit test suite uses mocked backends and does not require launching 
 | [P0 SDK Specification](docs/p0_sdk.md) | Implementation verification, boundaries, and limits |
 | [Engine Discovery](docs/engine_discovery.md) | SHA-256 profiles, signature masks, unknown build diagnostics |
 | [Lua Extensions](docs/p0_lua.md) | Type marshalling, custom tables, and VM hooks |
+| [Content mods](docs/content_mods.md) | Add or replace rom/ files from mods/<id>/content/, without a DLL |
 | [Addon Lua](docs/addon_lua.md) | Libraries, simulation tick and game events for addon/mission script VMs |
 | [Mod Storage](docs/p0_storage.md) | Storage isolation, key validation, atomic I/O |
 | [Video Monitors](docs/video_monitors.md) / [Video FX](docs/video_fx.md) | Framebuffer capture and monitor source shader injection |

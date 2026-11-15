@@ -125,6 +125,10 @@ cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
    src\engine_bindings.cpp src\engine_discovery.cpp /Fo:build\tests\ /Fe:build\tests\component_attrs_tests.exe /link bcrypt.lib || exit /b 1
 build\tests\component_attrs_tests.exe || exit /b 1
 
+cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
+   tests\content_overlay_tests.cpp /Fo:build\tests\ /Fe:build\tests\content_overlay_tests.exe || exit /b 1
+build\tests\content_overlay_tests.exe || exit /b 1
+
 echo --- Running Python unit tests ---
 where python >nul 2>&1
 if %ERRORLEVEL% equ 0 (

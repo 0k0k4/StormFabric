@@ -126,6 +126,7 @@ activez-le dans **MODS**.
 | --- | --- |
 | [`p0_demo`](examples/p0_demo/README.md) | Panneau natif, F8, stockage et vérifications PASS/FAIL/SKIP du SDK P0 |
 | [`native_api_demo`](examples/native_api_demo) | Bibliothèque Lua `sw_demo`, sans adresses moteur |
+| [`content_demo`](examples/content_demo) | Mod de contenu seul ajoutant un composant (généré depuis vos fichiers du jeu) |
 | [`addon_lua_demo`](examples/addon_lua_demo) | Bibliothèque `sf_demo` pour les scripts d'addons, avec un `script.lua` d'exemple |
 | [`mc_lua_qol`](examples/mc_lua_qol) | Fonctions QoL et extensions des microcontrôleurs via le SDK |
 | [`video_fx`](docs/video_fx.md) | Effets/capture vidéo natifs et script de démonstration |
@@ -215,6 +216,7 @@ tests\run_tests.bat
 | [SDK P0](docs/p0_sdk.md) | État réel, limites et vérifications en jeu |
 | [Engine discovery](docs/engine_discovery.md) | Profils, hashes, validation et diagnostic des builds inconnus |
 | [Extensions Lua](docs/p0_lua.md) | Valeurs/tables, contexte callback et erreurs |
+| [Mods de contenu](docs/content_mods.md) | Ajouter ou remplacer des fichiers de rom/ depuis mods/<id>/content/, sans DLL |
 | [Lua des addons](docs/addon_lua.md) | Bibliothèques, tick de simulation et événements du jeu des VM d'addons/missions |
 | [Stockage](docs/p0_storage.md) | Portées, sécurité des chemins et écritures atomiques |
 | [Moniteurs vidéo](docs/video_monitors.md) / [Video FX](docs/video_fx.md) | Pipeline natif, effets et captures |
