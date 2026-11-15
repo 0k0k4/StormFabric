@@ -121,6 +121,10 @@ Pre-compiled examples are generated in `build/examples/`:
 
 ## Creating a Mod
 
+> **Complete guide: [`AGENTS.md`](AGENTS.md)** — which kind of mod to pick, ready-to-build
+> templates (content, tick, events, Lua libraries), build, install and troubleshooting. It is written
+> so that an AI agent can follow it too.
+
 ### Manifest: `mod.json`
 
 Every mod requires a `mod.json` descriptor in its directory:

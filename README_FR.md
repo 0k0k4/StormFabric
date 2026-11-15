@@ -135,6 +135,10 @@ activez-le dans **MODS**.
 
 ## Créer un mod
 
+> **Guide complet (en anglais) : [`AGENTS.md`](AGENTS.md)** — type de mod à choisir, modèles prêts à compiler
+> (contenu, tick, événements, bibliothèques Lua), compilation, installation et diagnostic.
+> Il est écrit pour être suivi aussi par un agent IA.
+
 ### Manifeste `mod.json`
 
 ```json
