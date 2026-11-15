@@ -1,0 +1,32 @@
+StormFabric - native mod loader for Stormworks: Build and Rescue
+https://github.com/0k0k4/StormFabric
+
+REQUIREMENTS
+- Windows 10/11 64-bit.
+- Stormworks v1.15.18 or v1.15.23 (64-bit, stormworks64.exe).
+  On any other game version the loader stays inactive and changes nothing.
+
+INSTALL
+1. Close Stormworks.
+2. Open your Stormworks folder.
+   Steam: right-click Stormworks in your library > Manage > Browse local files.
+   (Usually C:\Program Files (x86)\Steam\steamapps\common\Stormworks)
+3. Copy iphlpapi.dll into that folder, next to stormworks64.exe.
+   If you are upgrading, replace the old iphlpapi.dll.
+4. Launch the game normally through Steam. A MODS button appears on the
+   main menu.
+
+On first launch the loader creates a "mods" folder next to stormworks64.exe.
+
+ADD A MOD
+1. Close Stormworks.
+2. Put the mod folder in mods\ , for example:
+      mods\my_mod\mod.json
+      mods\my_mod\my_mod.dll
+3. Start the game and enable the mod in the MODS menu.
+   A mod that adds content (components, meshes...) needs a game restart.
+
+Problems? Read StormworksModLoader.log in the Stormworks folder.
+
+UNINSTALL
+Delete iphlpapi.dll and the mods folder. No game file is ever modified.

@@ -1,69 +1,90 @@
-# StormFabric v0.1.0-alpha
+# StormFabric v0.2.0
 
-> **First Public Alpha Release** of StormFabric — the native C++ mod loader and plugin SDK for Stormworks: Build and Rescue.
-
----
-
-## ⚡ What is StormFabric?
-
-StormFabric is a non-invasive, high-performance C++ mod loader for Stormworks:
-* **Zero Modified Game Files:** Loads via a standard Windows `iphlpapi.dll` proxy.
-* **In-Game Menu:** Adds a native "MODS" button directly to the Stormworks main menu to view and toggle plugins.
-* **Stable C++ SDK (ABI v1):** Provides safe engine abstractions so mods don't rely on fragile hardcoded memory offsets.
+> Second alpha of StormFabric, the native C++ mod loader and plugin SDK for Stormworks: Build and Rescue.
+> This release turns the loader into a gameplay modding platform: mods can now act on the world every tick,
+> react to game events, extend addon scripts, and ship their own game content.
 
 ---
 
-## 🚀 Featured Showcase Mod: `mc_lua_qol`
+## ✨ What's new
 
-Included in this release is **`mc_lua_qol`** (Microcontroller Lua QoL & Unlocker), demonstrating the power of native engine hooks:
+### Gameplay modding (Stormworks v1.15.23 only)
 
-* **128 KB Microcontroller Scripts:** Completely removes the vanilla 4 KB character ceiling, allowing massive codebases inside vehicle microcontrollers.
-* **CPU Timeout & Instruction Unlocks:** Lifts execution limits so complex navigation, radar, and physics algorithms never hit unexpected timeout crashes.
-* **Native Helper Functions:** Injects 25+ fast native C++ helpers directly into Lua:
-  * Hardware-accelerated PID controllers.
-  * Touchscreen button hitboxes & input handlers.
-  * Hex color decoding & drawing utilities.
-  * High-performance math and telemetry utilities.
+* **Addon script libraries**: `lua->registerAddonLibrary` gives addon/mission scripts (`script.lua`) a native
+  global table next to `server.*`.
+* **Call the game from C++**: `extras->getGlobal` and `extras->call` run any Lua function, including the
+  game's own `server.*` API, in protected mode. A Lua error comes back as `SW_LUA_CALL_FAILED` and never crashes the game.
+* **Simulation tick**: `runtime->subscribeSimulationTick` calls a mod once per server update (about 60 per second),
+  right after every addon's `onTick`, with a live addon Lua state.
+* **Game events**: `runtime->subscribeGameEvent` delivers addon callbacks such as `onPlayerJoin`, `onVehicleSpawn`,
+  `onCustomCommand` and `onChatMessage` to C++, once per event, with typed arguments.
+
+### Content mods (no code)
+
+* A mod can add or replace files under `rom/` (component definitions, meshes, audio, data) from its own
+  `content/` folder, without touching game files. A mod can be content only (no DLL).
+* The MODS menu shows `CONTENT` for an active content mod and `RESTART` when a change needs a restart.
+  Conflicts between mods are reported in the log.
+
+### SDK
+
+* **Native primitives** (`host->api->native`): inline hooks, memory access and signature scanning for advanced mods.
+* **Engine Lua binding surface**: 427 engine Lua entries exposed to mods.
+* **Component physics attributes**: 120 fields exposed to mods.
+* New capability bits: `SW_CAP_LUA_ADDON`, `SW_CAP_SIMULATION_TICK`, `SW_CAP_GAME_EVENTS`.
+* **Backward compatible**: SDK version 2 and engine ABI 1 are unchanged. New members are appended,
+  so mods built for v0.1.0 keep working.
+
+### Docs and tooling
+
+* **`AGENTS.md`**: a step-by-step guide to create a mod, with templates that compile as they are
+  (content, tick, events, addon and microcontroller libraries).
+* New docs: `docs/addon_lua.md` and `docs/content_mods.md`.
+* New examples: `addon_lua_demo` (tick, events, addon library) and `content_demo` (adds a component).
+
+### Fixes
+
+* The debug terminal no longer freezes the game when text is selected in its window.
+  Console output now goes through a dedicated writer thread.
+* The test suite and offline generators are repaired; all 16 C++ suites pass.
 
 ---
 
-## 📦 Package Contents
+## 📦 Package contents
 
 ```text
-StormFabric-v0.1.0-alpha.zip
-├── iphlpapi.dll                     (The StormFabric proxy loader)
-└── mods/
-    └── mc_lua_qol/
-        ├── mc_lua_qol.dll           (Compiled 64-bit native mod)
-        └── mod.json                 (Mod manifest and metadata)
+StormFabric-v0.2.0.zip
+├── iphlpapi.dll                     (the StormFabric proxy loader)
+└── How to install.txt
 ```
+
+The loader only: no mod is included. The `mods/` folder is created on first launch.
 
 ---
 
 ## 🛠️ Installation
 
-1. Download **`StormFabric-v0.1.0-alpha.zip`** from the **Assets** section below.
-2. Open your Stormworks installation folder:
-   * Right-click **Stormworks** in your Steam Library &rarr; **Manage** &rarr; **Browse local files**.
-   * (Usually `C:\Program Files (x86)\Steam\steamapps\common\Stormworks`).
-3. Extract the contents of the ZIP archive directly into that folder so that:
-   * `iphlpapi.dll` is in the same folder as `stormworks64.exe`.
-   * The `mods/` folder is placed in the root directory.
-4. Launch Stormworks normally through Steam. A new **MODS** button will appear on the main menu!
-
----
+1. **Close Stormworks.**
+2. Download **`StormFabric-v0.2.0.zip`** from the **Assets** section below.
+3. Open your Stormworks folder (Steam: right-click **Stormworks** → **Manage** → **Browse local files**).
+4. Copy `iphlpapi.dll` into that folder, next to `stormworks64.exe`. Replace the old one if you are
+   upgrading from v0.1.0.
+5. Launch the game normally through Steam. The **MODS** button appears on the main menu.
+6. To add a mod, put its folder in `mods/` (for example `mods/my_mod/mod.json`), then enable it in the MODS menu.
 
 ## 🧹 Uninstallation
 
-To completely uninstall StormFabric:
-1. Delete `iphlpapi.dll` from your Stormworks directory.
-2. Delete the `mods/` folder (or just `mods/mc_lua_qol`).
-3. Your game is immediately 100% back to vanilla. No original files were ever modified.
+Delete `iphlpapi.dll` and the `mods/` folder. No game file is ever modified.
 
 ---
 
-## ⚠️ Notes & Requirements
+## ⚠️ Notes and requirements
 
-* Requires Windows 10/11 64-bit and Stormworks 64-bit (`stormworks64.exe`).
-* Designed and reverse-engineered against Stormworks v1.15.x.
-* If you encounter issues, please report them on [GitHub Issues](https://github.com/0k0k4/StormFabric/issues).
+* Windows 10/11 64-bit, Stormworks 64-bit (`stormworks64.exe`).
+* Only two exact game builds are supported: v1.15.18 and v1.15.23 (SHA-256 checked). On any other build the
+  loader installs no hook.
+* Addon libraries, Lua calls, the simulation tick and game events require **v1.15.23**. Content mods and
+  the rest of the SDK work on both builds.
+* Not verified yet: multiplayer, pause and script reload for the tick and events; replacing existing game
+  files, meshes and audio through content mods.
+* Report issues on [GitHub Issues](https://github.com/0k0k4/StormFabric/issues).
