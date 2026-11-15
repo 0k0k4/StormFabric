@@ -82,3 +82,6 @@ stormworks-modding-kit/
 
 # content_demo: generated from the user's own game files (make_content.py)
 examples/content_demo/content/
+
+# Local test mods (not part of the loader repo)
+testmod/

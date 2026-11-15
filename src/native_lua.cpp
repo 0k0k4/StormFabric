@@ -1450,8 +1450,6 @@ bool g_tickInstalled = false;
 uint64_t g_tickSequence = 0;
 uintptr_t g_tickState = 0;      // addon state handed to the previous tick, kept while valid
 SwHandle g_nextTickHandle = 0x5400000000000001ull;
-DWORD g_tickThread = 0;
-ULONGLONG g_tickRateStart = 0;  // one-shot rate diagnostic in the loader log
 constexpr size_t kTickPerOwnerLimit = 64;
 
 bool AddonScriptReady(uintptr_t self, uintptr_t state) {
@@ -1472,23 +1470,6 @@ void RunSimulationTick() {
     std::vector<LibraryFunction*> subscribers;
     for (const auto& e : g_libraryFunctions) if (e->owner && e->tick) subscribers.push_back(e.get());
     if (subscribers.empty()) return;
-    if (!g_tickThread) {
-        g_tickThread = GetCurrentThreadId();
-        g_tickRateStart = GetTickCount64();
-        if (g_host && g_host->log) {
-            char line[128];
-            snprintf(line, sizeof(line), "Simulation tick: first tick delivered (thread %lu)", g_tickThread);
-            g_host->log("lua", line);
-        }
-    } else if (g_tickRateStart && sequence % 600 == 0) {
-        const ULONGLONG elapsed = GetTickCount64() - g_tickRateStart;
-        if (g_host && g_host->log && elapsed) {
-            char line[128];
-            snprintf(line, sizeof(line), "Simulation tick: 600 updates in %llu ms", elapsed);
-            g_host->log("lua", line);
-        }
-        g_tickRateStart = 0; // measured once
-    }
     // Keep the same addon VM while it stays valid; otherwise take any ready one.
     uintptr_t state = 0;
     LiveLuaVm vm{};
