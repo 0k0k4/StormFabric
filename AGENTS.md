@@ -25,6 +25,10 @@ To change the **loader** itself (not a mod), read `README.md` and `docs/` first.
 5. **Keep nothing from Lua.** A `void* luaState` is only valid during the callback that
    provides it. Do not store it and do not use it from another thread.
 6. **The game must be closed** to replace a mod DLL or the loader.
+7. **Never name a mod DLL like a Windows DLL.** Windows binds a DLL request by base name to a
+   module already loaded in the process, so a mod DLL called `websocket.dll`, `winhttp.dll`,
+   `version.dll`… replaces the system DLL for the game and everything in it. Prefix the name
+   (`sf_websocket.dll`) and check that `C:\Windows\System32\<name>` does not exist.
 
 ## 2. Which kind of mod?
 
@@ -67,7 +71,8 @@ exist on game build **1.15.23** (`SW_CAP_LUA_ADDON`, `SW_CAP_SIMULATION_TICK`,
 }
 ```
 
-- `id`: lowercase, unique. `main`: omitted for a content-only mod.
+- `id`: lowercase, unique. `main`: omitted for a content-only mod; never the name of a
+  System32 DLL (rule 7).
 - `content`: folder overlaid on `rom/` (defaults to `content`, used when it exists).
 - `dependencies`: `id`s of other mods loaded before this one. `native_deps`: local DLLs.
 - The enabled/disabled state is stored in `mods/_modloader.ini` (`id=1` or `id=0`).
@@ -339,6 +344,7 @@ Quick troubleshooting:
 | addon library missing | `script.lua` loaded before the mod: reload the world |
 | content ignored | game not restarted, wrong path under `content/`, conflict (see log) |
 | `plugin … callback crashed; disabled` | exception or invalid access in a mod callback |
+| a Windows API fails only in game (e.g. WinHTTP error 8) | a mod DLL has the name of a System32 DLL (rule 7) |
 
 ## 12. Checklist before shipping a mod
 
@@ -348,4 +354,5 @@ Quick troubleshooting:
 - [ ] `checkStack` before every Lua push; the right number of results returned.
 - [ ] No game file in the mod package.
 - [ ] Valid `mod.json`, unique lowercase `id`.
+- [ ] DLL name absent from `C:\Windows\System32`.
 - [ ] Tested in game: loading visible in the log and the behaviour observed.
