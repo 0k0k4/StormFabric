@@ -14,6 +14,8 @@
 namespace {
 bool profileValid = true;
 bool qolProfileValid = true;
+bool addonProfileValid = false, addonInstalled = false;
+int addonRegistrations = 0;
 bool luaEnabled = false;
 const SwModHost* releasedOwner = nullptr;
 int initCount = 0, clickCount = 0;
@@ -29,6 +31,8 @@ void* Button(void*, float, float, int, sw::EStr* ic, sw::EStr* lb, uint32_t, int
 }
 void Click(void*, void*) { ++clickCount; }
 bool RegisterLibrary(const SwModHost*, const char*, const SwLuaFunction*, size_t) { return true; }
+bool RegisterAddon(const SwModHost*, const char*, const SwLuaFunction*, size_t) { ++addonRegistrations; return true; }
+void Ignore(const SwEvent*, void*) {}
 int Callback(void*, void*) { return 0; }
 template<class T> T Read(void* p, size_t offset) { return *reinterpret_cast<T*>(static_cast<char*>(p) + offset); }
 
@@ -54,6 +58,8 @@ void Notify(LogLevel, const std::string&, const std::string&, float) {}
 void LogDiscoveryProgress(const char*, size_t, size_t, const char*, bool) {}
 bool ValidateLuaProfile(uint8_t*) { return profileValid; }
 bool ValidateQolEditorProfile(uint8_t*) { return qolProfileValid; }
+bool ValidateAddonLuaProfile(uint8_t*) { return addonProfileValid; }
+bool NativeAddonLuaInstalled() { return addonInstalled; }
 bool EnableNativeLua(const SwModHost*) { ++initCount; return !failLuaInit; }
 bool EnableNativeQolEditor(const SwModHost*) { return !failLuaInit; }
 void DisableNativeLua() {}
@@ -71,6 +77,7 @@ const SwLuaApi* NativeLuaPrimitives() {
     static SwLuaApi api = {};
     api.structSize = sizeof(api);
     api.registerLibrary = &RegisterLibrary;
+    api.registerAddonLibrary = &RegisterAddon;
     return &api;
 }
 const SwLuaExtrasApi* NativeLuaExtras() { static SwLuaExtrasApi api={sizeof(SwLuaExtrasApi)};return &api; }
@@ -156,8 +163,34 @@ int main() {
     assert(api->lua->enableQol(&a) && luaEnabled);
     swml::ReleaseEngineApiOwner(&a);
 
+    // Addon/mission script VMs: optional capability of the newer build only. An
+    // uncertified build, or hooks that failed to install, refuse the registration
+    // and the events while microcontroller libraries keep working.
+    const uint64_t addonMask = SW_EVENT_MASK(SW_EVENT_ADDON_LUA_CREATED) | SW_EVENT_MASK(SW_EVENT_ADDON_LUA_DESTROYED);
+    SwHandle subscription = 0;
+    assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_LUA_ADDON));
+    swml::RegisterEngineApiOwner(&a);
+    assert(!api->lua->registerAddonLibrary(&a, "example", functions, 1) && addonRegistrations == 0);
+    assert(api->runtime->subscribe(&a, addonMask, &Ignore, nullptr, &subscription) == SW_UNAVAILABLE);
+    assert(api->lua->registerLibrary(&a, "example", functions, 1));
+    swml::ReleaseEngineApiOwner(&a);
+    addonProfileValid = true;
+    swml::InitializeEngineApi(game);
+    api = swml::GetEngineApi();
+    assert(swml::RuntimePrimitives()->capabilities() & SW_CAP_LUA_ADDON);
+    swml::RegisterEngineApiOwner(&a);
+    assert(!api->lua->registerAddonLibrary(&unknown, "example", functions, 1));
+    assert(!api->lua->registerAddonLibrary(&a, "example", functions, 1) && addonRegistrations == 0); // hooks not installed
+    assert(api->runtime->subscribe(&a, addonMask, &Ignore, nullptr, &subscription) == SW_UNAVAILABLE);
+    addonInstalled = true;
+    assert(api->lua->registerAddonLibrary(&a, "example", functions, 1) && addonRegistrations == 1);
+    assert(api->runtime->subscribe(&a, addonMask, &Ignore, nullptr, &subscription) == SW_OK && subscription);
+    assert(!luaEnabled); // addon libraries do not implicitly enable QoL
+    swml::ReleaseEngineApiOwner(&a);
+
     profileValid = false;
     swml::InitializeEngineApi(game);
     assert(swml::GetEngineApi()->ui && !swml::GetEngineApi()->lua && !swml::GetEngineApi()->video);
-    puts("PASS: SDK v1 prefix, C API layout, owner validation, inert callbacks, hot-reload token isolation, QoL ownership, profile rejection");
+    assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_LUA_ADDON));
+    puts("PASS: SDK v1 prefix, C API layout, owner validation, inert callbacks, hot-reload token isolation, QoL ownership, addon Lua gating, profile rejection");
 }

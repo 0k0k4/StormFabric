@@ -1,4 +1,9 @@
-# SDK Lua P0 (microcontrôleurs uniquement)
+# SDK Lua P0 (microcontrôleurs)
+
+> Les VM des addons/missions sont couvertes séparément, pour le build récent
+> uniquement : voir [`addon_lua.md`](addon_lua.md). Ce document décrit le service
+> des microcontrôleurs ; les passages « addon non pris en charge » ci-dessous
+> datent d'avant cet ajout.
 
 `include/sw_sdk_lua.h` ajoute une table indépendante `SwLuaExtrasApi`. Le préfixe
 existant de `SwLuaApi` ne change pas : l'intégrateur ajoute uniquement

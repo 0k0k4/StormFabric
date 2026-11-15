@@ -43,7 +43,8 @@ no gameplay validation is claimed.
   hooked by the new opaque-handle service. The existing raw legacy UI API is unchanged.
 - No teleport/spawn/despawn/control/authority writes, native game-action interception,
   mouse/controller binding or drag/resize/editor undo is advertised.
-- Lua `raiseError` is intentionally unsupported; addon VMs are not supported.
+- Lua `raiseError` is intentionally unsupported. Addon/mission script VMs are available on the
+  newer reviewed build only (`SW_CAP_LUA_ADDON`, see `addon_lua.md`); library call from an addon `onCreate` verified in game.
 
 `p0_world_evidence.md` records recovered routines and remaining blockers. An addon
 `onTick` is not a global simulation tick; addon creation/destruction can happen on

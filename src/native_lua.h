@@ -9,4 +9,6 @@ void SetNativeLuaEnabled(bool enabled);
 void ReleaseNativeLuaOwner(const SwModHost* owner);
 const SwLuaApi* NativeLuaPrimitives();
 const SwLuaExtrasApi* NativeLuaExtras();
+// True once the addon/mission script VM lifecycle hooks are installed (newer build only).
+bool NativeAddonLuaInstalled();
 }

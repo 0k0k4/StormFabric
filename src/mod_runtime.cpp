@@ -47,7 +47,8 @@ SwResult Subscribe(const SwModHost* owner,uint64_t mask,SwEventCallback callback
     std::lock_guard<std::recursive_mutex> lock(mutex);auto lease=Owner(owner);
     if(!lease)return SW_INVALID_OWNER;
     const uint64_t allowed=SW_EVENT_MASK(SW_EVENT_UI_UPDATE)|SW_EVENT_MASK(SW_EVENT_UI_READY)|SW_EVENT_MASK(SW_EVENT_UI_CLOSED)|
-        SW_EVENT_MASK(SW_EVENT_ACTION)|SW_EVENT_MASK(SW_EVENT_LUA_CREATED)|SW_EVENT_MASK(SW_EVENT_LUA_DESTROYED);
+        SW_EVENT_MASK(SW_EVENT_ACTION)|SW_EVENT_MASK(SW_EVENT_LUA_CREATED)|SW_EVENT_MASK(SW_EVENT_LUA_DESTROYED)|
+        SW_EVENT_MASK(SW_EVENT_ADDON_LUA_CREATED)|SW_EVENT_MASK(SW_EVENT_ADDON_LUA_DESTROYED);
     if(!callback || !out || !mask)return SW_INVALID_ARGUMENT;
     if(mask&~allowed)return SW_UNAVAILABLE;
     size_t count=0;for(const auto& item:subscriptions)if(item.second->lease==lease)++count;
@@ -112,7 +113,8 @@ void ReleaseRuntimeOwner(const SwModHost* owner){
 bool RuntimeOwnerValid(const SwModHost* owner){std::lock_guard<std::recursive_mutex> lock(mutex);return bool(Owner(owner));}
 void SetRuntimeCapabilities(uint64_t value){std::lock_guard<std::recursive_mutex> lock(mutex);capabilities=value;}
 void QueueModLuaEvent(SwEventType type,SwHandle id){
-    if(type!=SW_EVENT_LUA_CREATED&&type!=SW_EVENT_LUA_DESTROYED)return;
+    if(type!=SW_EVENT_LUA_CREATED&&type!=SW_EVENT_LUA_DESTROYED&&
+       type!=SW_EVENT_ADDON_LUA_CREATED&&type!=SW_EVENT_ADDON_LUA_DESTROYED)return;
     std::lock_guard<std::mutex> lock(pendingMutex);
     if(pending.size()<4096)pending.push_back({type,id});
     else LogError("P0: Lua lifecycle event queue full; event dropped");

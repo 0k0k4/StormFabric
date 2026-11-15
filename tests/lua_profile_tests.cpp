@@ -90,6 +90,29 @@ int main(int argc, char** argv) {
     assert(swml::ValidateLuaProfile(image.data()));
     image[scriptTable + 8] ^= 1;
     assert(swml::ValidateQolEditorProfile(image.data()));
+    // Addon/mission script VMs: newer reviewed build only, complete method bodies
+    // and unhooked vtable slots required; independent of the core Lua service.
+    const bool newerBuild = nt->FileHeader.TimeDateStamp == 0x6a9a9e20;
+    swml::AddonLuaProfile addon{};
+    assert(swml::ValidateAddonLuaProfile(image.data()) == newerBuild);
+    assert(swml::ResolveAddonLuaProfile(image.data(), &addon) == newerBuild);
+    assert(!swml::ResolveAddonLuaProfile(image.data(), nullptr) && !swml::ValidateAddonLuaProfile(nullptr));
+    if (newerBuild) {
+        assert(addon.vtable[1] == addon.close && addon.vtable[3] == addon.init);
+        auto* close = static_cast<uint8_t*>(addon.close); auto* init = static_cast<uint8_t*>(addon.init);
+        for (uint8_t* byte : {close, close + 47, init, init + 3000, init + 6373}) {
+            *byte ^= 1;
+            assert(!swml::ValidateAddonLuaProfile(image.data()) && swml::ValidateLuaProfile(image.data()));
+            *byte ^= 1;
+        }
+        for (int slot : {1, 3}) {
+            void* original = addon.vtable[slot];
+            addon.vtable[slot] = image.data(); // an already hooked slot is a conflict, never replaced
+            assert(!swml::ValidateAddonLuaProfile(image.data()) && swml::ValidateLuaProfile(image.data()));
+            addon.vtable[slot] = original;
+        }
+        assert(swml::ValidateAddonLuaProfile(image.data()));
+    }
     for (uint32_t key : {0x74a538,0x6d87d0,0x74aa50,0x688ec0,0x367c80,0xb70ea0}) {
         size_t rva = swml::EngineRva(image.data(),key); assert(rva);
         image[rva] ^= 1;
@@ -129,6 +152,7 @@ int main(int argc, char** argv) {
     assert(!swml::EngineRva(image.data(),0x97920));
     assert(!swml::ValidateLuaProfile(image.data()));
     assert(!swml::ValidateLuaProfile(nullptr));
+    assert(!swml::ValidateAddonLuaProfile(image.data())); // wrong build identity
     assert(!swml::ValidateVideoProfile(image.data()));
     assert(!swml::ValidateVideoProfile(nullptr));
     assert(!sw::ValidateIngameNotificationProfile(image.data()));

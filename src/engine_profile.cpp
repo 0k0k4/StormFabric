@@ -1,6 +1,7 @@
 #include "engine_profile.h"
 #include "engine_bindings.h"
 #include <windows.h>
+#include <cstring>
 #include "log.h"
 
 namespace swml {
@@ -79,6 +80,23 @@ bool CheckQolEditor(uint8_t* base) {
 }
 }
 
+namespace {
+#include "addon_lua_profile.generated.h"
+}
+bool ResolveAddonLuaProfile(uint8_t* base, AddonLuaProfile* out) {
+    if (!base || !out) return false;
+    __try {
+        if (EngineBuild(base) != 2) return false; // newer reviewed build only
+        if (memcmp(base + kAddonLuaClose, kAddonLuaCloseBytes, sizeof(kAddonLuaCloseBytes)) != 0 ||
+            memcmp(base + kAddonLuaInit, kAddonLuaInitBytes, sizeof(kAddonLuaInitBytes)) != 0) return false;
+        auto** table = reinterpret_cast<void**>(base + kAddonLuaVtable);
+        // Fail-closed conflict detection: never replace another hook.
+        if (table[1] != base + kAddonLuaClose || table[3] != base + kAddonLuaInit) return false;
+        *out = {table, base + kAddonLuaClose, base + kAddonLuaInit};
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+bool ValidateAddonLuaProfile(uint8_t* base) { AddonLuaProfile ignored; return ResolveAddonLuaProfile(base, &ignored); }
 bool ValidateLuaProfile(uint8_t* base) { return base && Check(base); }
 bool ValidateQolEditorProfile(uint8_t* base) { return base && CheckQolEditor(base); }
 }

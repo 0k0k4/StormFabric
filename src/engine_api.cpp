@@ -27,6 +27,7 @@ bool g_luaAvailable = false;
 bool g_luaStarted = false;
 bool g_qolAvailable = false;
 bool g_videoAvailable = false;
+bool g_addonLuaAvailable = false;
 
 struct ClickToken {
     const SwModHost* owner;
@@ -227,15 +228,26 @@ void DisableQol(const SwModHost* owner) {
 bool RegisterLibrary(const SwModHost* owner, const char* name, const SwLuaFunction* funcs, size_t count) {
     return StartLua(owner) && NativeLuaPrimitives()->registerLibrary(owner, name, funcs, count);
 }
+// Addon/mission script VMs are an optional capability of the newer reviewed build.
+// The hooks are installed with the central Lua service; a rejected profile or a
+// failed installation refuses the registration instead of silently doing nothing.
+bool RegisterAddonLibrary(const SwModHost* owner, const char* name, const SwLuaFunction* funcs, size_t count) {
+    if (!g_addonLuaAvailable || !StartLua(owner) || !NativeAddonLuaInstalled()) return false;
+    const SwLuaApi* native = NativeLuaPrimitives();
+    return native->registerAddonLibrary && native->registerAddonLibrary(owner, name, funcs, count);
+}
 SwResult SubscribeRuntime(const SwModHost* owner,uint64_t mask,SwEventCallback fn,void* data,SwHandle* out) {
     if(!ValidOwner(owner))return SW_INVALID_OWNER;
     if(!fn||!out||!mask)return SW_INVALID_ARGUMENT;
+    const uint64_t addonEvents=SW_EVENT_MASK(SW_EVENT_ADDON_LUA_CREATED)|SW_EVENT_MASK(SW_EVENT_ADDON_LUA_DESTROYED);
     const uint64_t allowed=SW_EVENT_MASK(SW_EVENT_UI_UPDATE)|SW_EVENT_MASK(SW_EVENT_UI_READY)|
         SW_EVENT_MASK(SW_EVENT_UI_CLOSED)|SW_EVENT_MASK(SW_EVENT_ACTION)|
-        SW_EVENT_MASK(SW_EVENT_LUA_CREATED)|SW_EVENT_MASK(SW_EVENT_LUA_DESTROYED);
+        SW_EVENT_MASK(SW_EVENT_LUA_CREATED)|SW_EVENT_MASK(SW_EVENT_LUA_DESTROYED)|addonEvents;
     if(mask&~allowed)return SW_UNAVAILABLE;
-    if(mask & (SW_EVENT_MASK(SW_EVENT_LUA_CREATED)|SW_EVENT_MASK(SW_EVENT_LUA_DESTROYED))) {
+    if((mask&addonEvents) && !g_addonLuaAvailable)return SW_UNAVAILABLE;
+    if(mask & (SW_EVENT_MASK(SW_EVENT_LUA_CREATED)|SW_EVENT_MASK(SW_EVENT_LUA_DESTROYED)|addonEvents)) {
         if(!StartLua(owner))return SW_UNAVAILABLE;
+        if((mask&addonEvents) && !NativeAddonLuaInstalled())return SW_UNAVAILABLE;
     }
     return RuntimePrimitives()->subscribe(owner,mask,fn,data,out);
 }
@@ -272,6 +284,8 @@ void InitializeEngineApi(const sw::Api& api) {
     g_lua.enableQol = &EnableQol;
     g_lua.disableQol = &DisableQol;
     g_lua.registerLibrary = &RegisterLibrary;
+    g_lua.registerAddonLibrary = &RegisterAddonLibrary;
+    g_addonLuaAvailable = g_luaAvailable && ValidateAddonLuaProfile(api.base);
     g_engine.lua = g_luaAvailable ? &g_lua : nullptr;
     // Independent availability: optional QoL/editor targets must never gate the
     // core Lua service (checkpoint: Core Lua vs QoL/editor capability separation).
@@ -292,10 +306,11 @@ void InitializeEngineApi(const sw::Api& api) {
     SetRuntimeCapabilities(SW_CAP_UI_EVENTS | SW_CAP_MAIN_THREAD_TASKS |
         SW_CAP_KEYBOARD_ACTIONS | SW_CAP_MOD_STORAGE |
         (g_luaAvailable ? SW_CAP_LUA_EXTRAS | SW_CAP_LUA_EVENTS : 0) |
-        (g_qolAvailable ? SW_CAP_LUA_QOL : 0));
-    LogInfo("Engine API v%u initialized (UI available, Lua %s, QoL/editor %s, video %s)", g_engine.abiVersion,
+        (g_qolAvailable ? SW_CAP_LUA_QOL : 0) |
+        (g_addonLuaAvailable ? SW_CAP_LUA_ADDON : 0));
+    LogInfo("Engine API v%u initialized (UI available, Lua %s, QoL/editor %s, video %s, addon Lua %s)", g_engine.abiVersion,
             g_luaAvailable ? "validated" : "unavailable", g_qolAvailable ? "validated" : "unavailable",
-            g_videoAvailable ? "validated" : "unavailable");
+            g_videoAvailable ? "validated" : "unavailable", g_addonLuaAvailable ? "validated" : "unavailable");
 }
 const SwEngineApi* GetEngineApi() { return &g_engine; }
 bool IsEngineApiOwner(const SwModHost* owner) { return ValidOwner(owner); }

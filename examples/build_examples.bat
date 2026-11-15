@@ -1,5 +1,5 @@
 @echo off
-rem Builds example mods (sw_core_lib, radar_telemetry, simple_dllmain_mod, mc_lua_qol, native_api_demo, video_fx, p0_demo).
+rem Builds example mods (sw_core_lib, radar_telemetry, simple_dllmain_mod, mc_lua_qol, native_api_demo, video_fx, p0_demo, addon_lua_demo).
 rem Requires MSVC x64 compiler (cl.exe).
 setlocal
 
@@ -31,6 +31,7 @@ if not exist "..\build\examples\mc_lua_qol" mkdir "..\build\examples\mc_lua_qol"
 if not exist "..\build\examples\native_api_demo" mkdir "..\build\examples\native_api_demo"
 if not exist "..\build\examples\video_fx" mkdir "..\build\examples\video_fx"
 if not exist "..\build\examples\p0_demo" mkdir "..\build\examples\p0_demo"
+if not exist "..\build\examples\addon_lua_demo" mkdir "..\build\examples\addon_lua_demo"
 
 rem 1. Local dependency math_dep.dll + mod sw_core_lib.dll
 cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /LD sw_core_lib\math_dep.cpp ^
@@ -91,6 +92,14 @@ cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /LD p0_demo\p0_demo.cpp ^
 copy /Y p0_demo\mod.json ..\build\examples\p0_demo\mod.json >nul
 copy /Y p0_demo\demo.lua ..\build\examples\p0_demo\demo.lua >nul
 copy /Y p0_demo\README.md ..\build\examples\p0_demo\README.md >nul
+
+rem 8. Native library for addon/mission scripts (newer reviewed build only)
+cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /LD addon_lua_demo\addon_lua_demo.cpp ^
+   /Fo:..\build\examples\addon_lua_demo\ /Fe:..\build\examples\addon_lua_demo\addon_lua_demo.dll ^
+   /link /DLL /MANIFEST:NO /DEBUG:NONE || exit /b 1
+copy /Y addon_lua_demo\mod.json ..\build\examples\addon_lua_demo\mod.json >nul
+copy /Y addon_lua_demo\script.lua ..\build\examples\addon_lua_demo\script.lua >nul
+del /Q ..\build\examples\addon_lua_demo\*.obj ..\build\examples\addon_lua_demo\*.exp ..\build\examples\addon_lua_demo\*.lib >nul 2>&1
 
 echo OK : Example mods built in build\examples\
 exit /b 0

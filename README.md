@@ -43,7 +43,8 @@ Using an `iphlpapi.dll` proxy, StormFabric integrates a native **MODS** menu dir
 | `api->runtime` | UI/Lua VM events, deferred tasks, timers, task cancellation | UI frame updates and monotonic time (**not** simulation ticks) |
 | `api->input` | Keyboard actions, key modifiers, pressed/down/released states | Keybinds (e.g. F8) verified; raw mouse/controller input not exposed |
 | `api->storage` | Per-mod configuration and binary data, atomic writes, sanitized keys | Up to 4 MiB per file; world-bound storage inactive |
-| `api->lua` / `lua->extras` | Custom microcontroller libraries, 34 QoL math/string/table helpers | Microcontroller VM only; `raiseError` intentionally omitted |
+| `api->lua` / `lua->extras` | Custom microcontroller libraries, 34 QoL math/string/table helpers | Microcontroller VMs; `raiseError` intentionally omitted |
+| `lua->registerAddonLibrary` | Native libraries for addon/mission scripts (`script.lua`), next to the game's `server.*` API | Newer build (v1.15.23) only; see [Addon Lua](docs/addon_lua.md) |
 | `api->video` | Native monitor video feed effects and asynchronous frame capture | Experimental; reads return latest completed source capture |
 | `api->world` | Reserved types for future entity/vehicle/world interactions | **NULL**: world, entity, vehicle, and player APIs are disabled |
 
@@ -109,6 +110,7 @@ Pre-compiled examples are generated in `build/examples/`:
 | --- | --- |
 | [`p0_demo`](examples/p0_demo/README.md) | Native HUD panel, F8 toggle, storage roundtrips, and SDK check suite |
 | [`native_api_demo`](examples/native_api_demo) | Custom `sw_demo` Lua library exposed to microcontrollers |
+| [`addon_lua_demo`](examples/addon_lua_demo) | `sf_demo` library for addon scripts, with a sample `script.lua` |
 | [`mc_lua_qol`](examples/mc_lua_qol) | Quality-of-life mathematical and utility functions for microcontroller Lua |
 | [`video_fx`](docs/video_fx.md) | Native monitor post-processing shaders and frame capture |
 | `sw_core_lib` / `radar_telemetry` | Inter-mod dependencies and local helper DLL loading |
@@ -210,6 +212,7 @@ The offline unit test suite uses mocked backends and does not require launching 
 | [P0 SDK Specification](docs/p0_sdk.md) | Implementation verification, boundaries, and limits |
 | [Engine Discovery](docs/engine_discovery.md) | SHA-256 profiles, signature masks, unknown build diagnostics |
 | [Lua Extensions](docs/p0_lua.md) | Type marshalling, custom tables, and VM hooks |
+| [Addon Lua](docs/addon_lua.md) | Libraries and events for addon/mission script VMs |
 | [Mod Storage](docs/p0_storage.md) | Storage isolation, key validation, atomic I/O |
 | [Video Monitors](docs/video_monitors.md) / [Video FX](docs/video_fx.md) | Framebuffer capture and monitor source shader injection |
 | [UI Notifications](docs/ingame_notifications.md) | In-game notification pipeline and HUD lifecycle |

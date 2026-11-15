@@ -111,6 +111,13 @@ longueur complète, hors NUL, même si la copie est tronquée.
 Exemple compilable : `examples/native_api_demo`, désactivé par défaut, enregistre
 `sw_demo.sum(...)` et `sw_demo.clamp(x,min,max)` sans activer les autres changements QoL.
 
+### Bibliothèques pour les scripts d'addons
+
+`registerAddonLibrary(host, name, functions, count)` (membre ajouté en fin de `SwLuaApi`,
+vérifier `structSize`) installe une bibliothèque dans les VM des addons/missions au lieu
+des microcontrôleurs. Build récent uniquement, signalé par `SW_CAP_LUA_ADDON`.
+Contrat, noms réservés, événements et preuves : [`addon_lua.md`](addon_lua.md).
+
 ### Déchargement et limites
 
 Les closures Lua pointent vers le loader, avec un token propre à chaque enregistrement.

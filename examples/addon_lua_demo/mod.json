@@ -1,0 +1,10 @@
+{
+  "id": "addon_lua_demo",
+  "name": "Addon Lua Demo",
+  "version": "1.0.0",
+  "author": "0k0k4",
+  "description": "Native library for addon scripts (script.lua): sf_demo.ping() and sf_demo.log(msg)",
+  "main": "addon_lua_demo.dll",
+  "enabled_by_default": false,
+  "dependencies": []
+}
