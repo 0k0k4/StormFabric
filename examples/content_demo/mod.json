@@ -1,0 +1,9 @@
+{
+  "id": "content_demo",
+  "name": "Content Demo",
+  "version": "1.0.0",
+  "author": "0k0k4",
+  "description": "Content-only mod: adds a 'StormFabric Block' component through content/ (no DLL)",
+  "content": "content",
+  "enabled_by_default": false
+}

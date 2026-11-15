@@ -28,6 +28,8 @@ bool g_luaStarted = false;
 bool g_qolAvailable = false;
 bool g_videoAvailable = false;
 bool g_addonLuaAvailable = false;
+bool g_simTickAvailable = false;
+bool g_gameEventsAvailable = false;
 
 struct ClickToken {
     const SwModHost* owner;
@@ -236,6 +238,28 @@ bool RegisterAddonLibrary(const SwModHost* owner, const char* name, const SwLuaF
     const SwLuaApi* native = NativeLuaPrimitives();
     return native->registerAddonLibrary && native->registerAddonLibrary(owner, name, funcs, count);
 }
+// Simulation ticks need the central Lua service: its addon VM records provide the
+// state handed to the callback, and its frame machinery makes lua->extras usable there.
+SwResult SubscribeTick(const SwModHost* owner, SwSimulationTickCallback fn, void* data, SwHandle* out) {
+    if (!ValidOwner(owner)) return SW_INVALID_OWNER;
+    if (!fn || !out) return SW_INVALID_ARGUMENT;
+    if (!g_simTickAvailable || !StartLua(owner)) return SW_UNAVAILABLE;
+    return SubscribeSimulationTick(owner, fn, data, out);
+}
+SwResult UnsubscribeTick(const SwModHost* owner, SwHandle handle) {
+    if (!ValidOwner(owner)) return SW_INVALID_OWNER;
+    return UnsubscribeSimulationTick(owner, handle);
+}
+SwResult SubscribeEvent(const SwModHost* owner, const char* name, SwGameEventCallback fn, void* data, SwHandle* out) {
+    if (!ValidOwner(owner)) return SW_INVALID_OWNER;
+    if (!fn || !out) return SW_INVALID_ARGUMENT;
+    if (!g_gameEventsAvailable || !StartLua(owner)) return SW_UNAVAILABLE;
+    return SubscribeGameEvent(owner, name, fn, data, out);
+}
+SwResult UnsubscribeEvent(const SwModHost* owner, SwHandle handle) {
+    if (!ValidOwner(owner)) return SW_INVALID_OWNER;
+    return UnsubscribeGameEvent(owner, handle);
+}
 SwResult SubscribeRuntime(const SwModHost* owner,uint64_t mask,SwEventCallback fn,void* data,SwHandle* out) {
     if(!ValidOwner(owner))return SW_INVALID_OWNER;
     if(!fn||!out||!mask)return SW_INVALID_ARGUMENT;
@@ -297,6 +321,13 @@ void InitializeEngineApi(const sw::Api& api) {
     g_engine.video = g_videoAvailable ? &g_video : nullptr;
     g_runtime = *RuntimePrimitives();
     g_runtime.subscribe = &SubscribeRuntime;
+    g_runtime.subscribeSimulationTick = &SubscribeTick;
+    g_runtime.unsubscribeSimulationTick = &UnsubscribeTick;
+    g_simTickAvailable = g_luaAvailable && ValidateSimulationTickProfile(api.base);
+    g_runtime.subscribeGameEvent = &SubscribeEvent;
+    g_runtime.unsubscribeGameEvent = &UnsubscribeEvent;
+    // Events are only ever delivered for addon VMs, whose records need the addon hooks.
+    g_gameEventsAvailable = g_addonLuaAvailable && ValidateGameEventProfile(api.base);
     g_engine.runtime = &g_runtime;
     g_engine.input = InputPrimitives();
     g_engine.nativeUi = NativeUiPrimitives();
@@ -307,10 +338,13 @@ void InitializeEngineApi(const sw::Api& api) {
         SW_CAP_KEYBOARD_ACTIONS | SW_CAP_MOD_STORAGE |
         (g_luaAvailable ? SW_CAP_LUA_EXTRAS | SW_CAP_LUA_EVENTS : 0) |
         (g_qolAvailable ? SW_CAP_LUA_QOL : 0) |
-        (g_addonLuaAvailable ? SW_CAP_LUA_ADDON : 0));
-    LogInfo("Engine API v%u initialized (UI available, Lua %s, QoL/editor %s, video %s, addon Lua %s)", g_engine.abiVersion,
+        (g_addonLuaAvailable ? SW_CAP_LUA_ADDON : 0) |
+        (g_simTickAvailable ? SW_CAP_SIMULATION_TICK : 0) |
+        (g_gameEventsAvailable ? SW_CAP_GAME_EVENTS : 0));
+    LogInfo("Engine API v%u initialized (UI available, Lua %s, QoL/editor %s, video %s, addon Lua %s, simulation tick %s, game events %s)", g_engine.abiVersion,
             g_luaAvailable ? "validated" : "unavailable", g_qolAvailable ? "validated" : "unavailable",
-            g_videoAvailable ? "validated" : "unavailable", g_addonLuaAvailable ? "validated" : "unavailable");
+            g_videoAvailable ? "validated" : "unavailable", g_addonLuaAvailable ? "validated" : "unavailable",
+            g_simTickAvailable ? "validated" : "unavailable", g_gameEventsAvailable ? "validated" : "unavailable");
 }
 const SwEngineApi* GetEngineApi() { return &g_engine; }
 bool IsEngineApiOwner(const SwModHost* owner) { return ValidOwner(owner); }

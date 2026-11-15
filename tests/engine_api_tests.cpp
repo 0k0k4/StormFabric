@@ -15,6 +15,10 @@ namespace {
 bool profileValid = true;
 bool qolProfileValid = true;
 bool addonProfileValid = false, addonInstalled = false;
+bool tickProfileValid = false;
+bool eventProfileValid = false;
+int eventSubscriptions = 0;
+int tickSubscriptions = 0;
 int addonRegistrations = 0;
 bool luaEnabled = false;
 const SwModHost* releasedOwner = nullptr;
@@ -33,6 +37,8 @@ void Click(void*, void*) { ++clickCount; }
 bool RegisterLibrary(const SwModHost*, const char*, const SwLuaFunction*, size_t) { return true; }
 bool RegisterAddon(const SwModHost*, const char*, const SwLuaFunction*, size_t) { ++addonRegistrations; return true; }
 void Ignore(const SwEvent*, void*) {}
+void IgnoreTick(const SwSimulationTick*, void*) {}
+void IgnoreEvent(const SwGameEvent*, void*) {}
 int Callback(void*, void*) { return 0; }
 template<class T> T Read(void* p, size_t offset) { return *reinterpret_cast<T*>(static_cast<char*>(p) + offset); }
 
@@ -60,6 +66,12 @@ bool ValidateLuaProfile(uint8_t*) { return profileValid; }
 bool ValidateQolEditorProfile(uint8_t*) { return qolProfileValid; }
 bool ValidateAddonLuaProfile(uint8_t*) { return addonProfileValid; }
 bool NativeAddonLuaInstalled() { return addonInstalled; }
+bool ValidateSimulationTickProfile(uint8_t*) { return tickProfileValid; }
+bool ValidateGameEventProfile(uint8_t*) { return eventProfileValid; }
+SwResult SubscribeGameEvent(const SwModHost*, const char*, SwGameEventCallback, void*, SwHandle* out) { ++eventSubscriptions; *out = 11; return SW_OK; }
+SwResult UnsubscribeGameEvent(const SwModHost*, SwHandle handle) { return handle == 11 ? SW_OK : SW_NOT_FOUND; }
+SwResult SubscribeSimulationTick(const SwModHost*, SwSimulationTickCallback, void*, SwHandle* out) { ++tickSubscriptions; *out = 9; return SW_OK; }
+SwResult UnsubscribeSimulationTick(const SwModHost*, SwHandle handle) { return handle == 9 ? SW_OK : SW_NOT_FOUND; }
 bool EnableNativeLua(const SwModHost*) { ++initCount; return !failLuaInit; }
 bool EnableNativeQolEditor(const SwModHost*) { return !failLuaInit; }
 void DisableNativeLua() {}
@@ -188,9 +200,53 @@ int main() {
     assert(!luaEnabled); // addon libraries do not implicitly enable QoL
     swml::ReleaseEngineApiOwner(&a);
 
+    // Simulation tick: optional capability; refused without a validated profile.
+    SwHandle tick = 0;
+    assert(api->runtime->structSize == sizeof(SwRuntimeApi) && api->runtime->subscribeSimulationTick);
+    assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_SIMULATION_TICK));
+    swml::RegisterEngineApiOwner(&a);
+    assert(api->runtime->subscribeSimulationTick(&a, &IgnoreTick, nullptr, &tick) == SW_UNAVAILABLE && tickSubscriptions == 0);
+    swml::ReleaseEngineApiOwner(&a);
+    tickProfileValid = true;
+    swml::InitializeEngineApi(game);
+    api = swml::GetEngineApi();
+    assert(swml::RuntimePrimitives()->capabilities() & SW_CAP_SIMULATION_TICK);
+    assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_SIMULATION_EVENTS)); // no world/time claim
+    assert(api->runtime->subscribeSimulationTick(&unknown, &IgnoreTick, nullptr, &tick) == SW_INVALID_OWNER);
+    swml::RegisterEngineApiOwner(&a);
+    assert(api->runtime->subscribeSimulationTick(&a, nullptr, nullptr, &tick) == SW_INVALID_ARGUMENT);
+    assert(api->runtime->subscribeSimulationTick(&a, &IgnoreTick, nullptr, &tick) == SW_OK && tick == 9 && tickSubscriptions == 1);
+    assert(api->runtime->unsubscribeSimulationTick(&unknown, tick) == SW_INVALID_OWNER);
+    assert(api->runtime->unsubscribeSimulationTick(&a, tick) == SW_OK);
+    swml::ReleaseEngineApiOwner(&a);
+
+    // Game events: need the addon VM profile AND their own profile.
+    SwHandle event = 0;
+    assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_GAME_EVENTS));
+    swml::RegisterEngineApiOwner(&a);
+    assert(api->runtime->subscribeGameEvent(&a, nullptr, &IgnoreEvent, nullptr, &event) == SW_UNAVAILABLE && eventSubscriptions == 0);
+    swml::ReleaseEngineApiOwner(&a);
+    eventProfileValid = true; addonProfileValid = false;
+    swml::InitializeEngineApi(game);
+    api = swml::GetEngineApi();
+    assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_GAME_EVENTS)); // no addon VMs, no events
+    addonProfileValid = true;
+    swml::InitializeEngineApi(game);
+    api = swml::GetEngineApi();
+    assert(swml::RuntimePrimitives()->capabilities() & SW_CAP_GAME_EVENTS);
+    assert(api->runtime->subscribeGameEvent(&unknown, nullptr, &IgnoreEvent, nullptr, &event) == SW_INVALID_OWNER);
+    swml::RegisterEngineApiOwner(&a);
+    assert(api->runtime->subscribeGameEvent(&a, "onPlayerJoin", nullptr, nullptr, &event) == SW_INVALID_ARGUMENT);
+    assert(api->runtime->subscribeGameEvent(&a, "onPlayerJoin", &IgnoreEvent, nullptr, &event) == SW_OK && event == 11 && eventSubscriptions == 1);
+    assert(api->runtime->unsubscribeGameEvent(&unknown, event) == SW_INVALID_OWNER);
+    assert(api->runtime->unsubscribeGameEvent(&a, event) == SW_OK);
+    swml::ReleaseEngineApiOwner(&a);
+
     profileValid = false;
     swml::InitializeEngineApi(game);
     assert(swml::GetEngineApi()->ui && !swml::GetEngineApi()->lua && !swml::GetEngineApi()->video);
+    assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_SIMULATION_TICK));
+    assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_GAME_EVENTS));
     assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_LUA_ADDON));
-    puts("PASS: SDK v1 prefix, C API layout, owner validation, inert callbacks, hot-reload token isolation, QoL ownership, addon Lua gating, profile rejection");
+    puts("PASS: SDK v1 prefix, C API layout, owner validation, inert callbacks, hot-reload token isolation, QoL ownership, addon Lua gating, simulation tick gating, game event gating, profile rejection");
 }

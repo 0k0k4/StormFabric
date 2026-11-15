@@ -27,7 +27,8 @@ data = json.loads((ROOT / "tools/discovery_contracts.json").read_text())
 assert data["reference_sha256"] == "55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3"
 entries = data["entries"] + data["witnesses"]
 typed = json.loads((ROOT / "tools/discovery_data_witnesses.json").read_text())
-reference = (ROOT.parent / "Stormworks/stormworks64.exe").read_bytes()
+from compare_newer_offline import reference_exe
+reference = reference_exe().read_bytes()
 assert hashlib.sha256(reference).hexdigest() == typed["reference_sha256"] == data["reference_sha256"]
 nt = struct.unpack_from("<I", reference, 0x3c)[0]
 count, optional_size = struct.unpack_from("<H", reference, nt+6)[0], struct.unpack_from("<H", reference, nt+20)[0]

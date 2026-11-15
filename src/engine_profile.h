@@ -20,4 +20,14 @@ bool ValidateAddonLuaProfile(uint8_t* base);
 // Optional protected call: lua_pcallk(L, nargs, nresults, errfunc, ctx, k).
 // Newer reviewed build only; NULL when the complete retained body differs.
 void* ResolveLuaPcallk(uint8_t* base);
+// Optional simulation tick: the server update that runs every addon onTick and
+// its three direct call sites. Newer reviewed build only; every site must still
+// be an E8 call to the update (an already redirected site is a conflict).
+struct SimulationTickProfile { void* update; uint8_t* sites[3]; };
+bool ResolveSimulationTickProfile(uint8_t* base, SimulationTickProfile* out);
+bool ValidateSimulationTickProfile(uint8_t* base);
+// Optional game events: call_by_name(script, EStr* name, ArgRing* args), through which
+// every addon callback is called. Newer reviewed build only; complete body required.
+void* ResolveGameEventProfile(uint8_t* base);
+bool ValidateGameEventProfile(uint8_t* base);
 }

@@ -22,11 +22,13 @@ for rva in (0x241fb0, 0x1dd500):
     add(rva, "ui")
 
 core = {0x957478, 0x17cb00, 0x9b15a0, 0x1e3ee0, 0x097920, 0x0be4a0,
-        0x097a10, 0x0ba830, 0x0982c0, 0x098050, 0x0983d0, 0x2e5ad0, 0x2e6050}
+        0x097a10, 0x0ba830, 0x0982c0, 0x098050, 0x0983d0, 0x2e5ad0, 0x2e6050,
+        0x097e90, 0x098130, 0x0a26f0}  # lua->extras: pushlstring, getfield, rawrunprotected
 editor = {0x63f300, 0x63f420, 0x24b140, 0x25e730, 0x9253e0, 0x25ed10, 0x24b650,
           0x63f550, 0x63fbc0, 0x63d980}
 lua = (ROOT / "src/native_lua.cpp").read_text()
-for value in re.findall(r"g_base\s*\+\s*(0x[0-9a-fA-F]+)", lua):
+# Both the historical (g_base + 0x...) and the migrated (EngineRva(g_base, 0x...)) forms.
+for value in re.findall(r"(?:g_base\s*\+\s*|EngineRva\(g_base,\s*)(0x[0-9a-fA-F]+)", lua):
     rva = int(value, 16)
     if rva >= 0xa92000:
         continue

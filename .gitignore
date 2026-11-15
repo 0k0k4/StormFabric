@@ -79,3 +79,6 @@ $RECYCLE.BIN/
 
 # Kit de retro-ingenierie : NE PAS VERSIONNER (droits sur le contenu du jeu)
 stormworks-modding-kit/
+
+# content_demo: generated from the user's own game files (make_content.py)
+examples/content_demo/content/

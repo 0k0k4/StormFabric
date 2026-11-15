@@ -1,6 +1,11 @@
 -- Paste into the script.lua of any addon (in-game Addon Editor). The addon still
 -- works without StormFabric: `sf_demo` is simply nil when the mod is not loaded.
 
+local script_ticks = 0
+function onTick(game_ticks)
+    script_ticks = script_ticks + 1
+end
+
 function onCreate(is_world_create)
     if sf_demo then
         local reply, count = sf_demo.ping()
@@ -23,5 +28,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command)
         local name = sf_demo.hostName()
         sf_demo.log("?sf: announce=" .. tostring(ok) .. " hostName=" .. tostring(name))
         server.announce("StormFabric", "C++ read host name: " .. tostring(name), user_peer_id)
+    end
+    if sf_demo.ticks then
+        server.announce("StormFabric", "ticks: C++=" .. tostring(sf_demo.ticks()) .. " script onTick=" .. script_ticks, user_peer_id)
     end
 end

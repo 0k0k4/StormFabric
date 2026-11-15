@@ -11,14 +11,17 @@ directe n'est pas couverte par l'API stable.
 - Les champs SDK v1 conservent leurs offsets ; `api` est ajouté à la fin de `SwModHost`.
 - Vérifier `sdkVersion >= 2`, `api`, `abiVersion == SW_ENGINE_API_VERSION` et les capacités
   nécessaires (`api->lua` peut être nul). Les tables ont un `structSize` pour leur extension.
-- **Cela ne rend pas le loader universel après une mise à jour.** Le profil demeure celui de
-  Stormworks v1.15.18 x64. Un portage doit adapter et valider la couche moteur centralisée ;
-  les plugins utilisant exclusivement l'API n'ont alors plus de RVA à corriger.
+- **Cela ne rend pas le loader universel après une mise à jour.** Les profils sont ceux des
+  deux exécutables revus (v1.15.18 et v1.15.23). Un portage doit adapter et valider la couche
+  moteur centralisée ; les plugins utilisant exclusivement l'API n'ont alors plus de RVA à corriger.
 - UI : contrôles de build, signatures et vtables dans `src/game.cpp`.
-- Lua : 58 empreintes de 32 octets, masquant les relocations ASLR, plus les slots de vtable,
-  dans `src/engine_profile.cpp` et `src/lua_profile.generated.h`.
-- La génération des empreintes refuse un SHA-256 différent de l'exécutable de référence :
-  `python tools/gen_lua_profile.py "chemin\stormworks64.exe"`.
+- Lua : corps de fonctions et slots de vtable revus pour les deux builds, dans
+  `src/engine_bindings.generated.h` (`tools/gen_engine_bindings.py`) et validés par
+  `src/engine_profile.cpp`. Les capacités propres au build récent (VM d'addons, appel
+  protégé, tick, événements) sont dans `src/addon_lua_profile.generated.h`
+  (`tools/gen_addon_lua_profile.py`).
+- Les générateurs refusent un SHA-256 différent des exécutables revus. Ils trouvent les deux
+  fichiers par `STORMWORKS_REFERENCE_EXE` et `STORMWORKS_NEWER_EXE` (voir `tools/compare_newer_offline.py`).
 - Aucun scan de signature ne prétend rendre automatiquement compatible un build inconnu.
 - Vidéo : extension optionnelle `api->video`, préfixe ABI préservé ; vérifier `api->structSize`
   avant d'accéder au champ. Profil, API et limites : [`video_fx.md`](video_fx.md).

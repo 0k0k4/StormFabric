@@ -30,6 +30,7 @@ struct ModEntry {
 
     std::wstring dirPath;      // Chemin complet du dossier du mod
     std::wstring mainDllPath;  // Chemin complet de la DLL principale à charger
+    std::wstring contentPath;  // Dossier de contenu superposé à rom\ ("content" de mod.json), sinon vide
 
     std::vector<std::string> dependencies;  // Dépendances ("dependencies" / "deps" dans mod.json)
     std::vector<std::string> nativeDeps;    // DLLs locales ("native_deps" / "dll_dependencies")
@@ -47,7 +48,10 @@ struct ModEntry {
         if (kind == ModKind::DllFile && name.size() > 4) return name.substr(0, name.size() - 4);
         return name;
     }
-    bool Toggleable() const { return kind != ModKind::DirWithoutDll && !mainDllPath.empty(); }
+    bool HasContent() const { return !contentPath.empty(); }
+    bool HasDll() const { return kind != ModKind::DirWithoutDll && !mainDllPath.empty(); }
+    // A content-only mod (no DLL) can be enabled too: its files overlay rom\ at startup.
+    bool Toggleable() const { return HasDll() || HasContent(); }
     bool IsLoaded() const { return loadState == ModLoadState::Loaded; }
 };
 

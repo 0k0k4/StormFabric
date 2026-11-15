@@ -3,11 +3,11 @@ import json
 import re
 import struct
 from pathlib import Path
-from compare_newer_offline import PE, ROOT
+from compare_newer_offline import PE, reference_exe, newer_exe
 
 outdir = Path(__file__).parent / 'ghidra'
-old = PE(ROOT / 'Stormworks/stormworks64.exe')
-new = PE(sys.argv[1] if len(sys.argv) > 1 else os.environ.get('STORMWORKS_NEWER_EXE', r'..\Stormworks_Newer\stormworks64.exe'))
+old = PE(reference_exe())
+new = PE(newer_exe())
 text = '\n'.join((outdir / name).read_text() for name in
                  ['p0_world_contract.txt', 'p0_world_vehicle.txt'])
 entries = []

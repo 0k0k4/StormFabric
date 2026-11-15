@@ -7,7 +7,9 @@
 // via les forwarders de proxy_exports.h vers la vraie DLL de System32.
 #include <windows.h>
 
+#include "content_overlay.h"
 #include "log.h"
+#include "mods_scan.h"
 #include "mods_ui.h"
 #include "native_prims.h"
 #include "proxy_exports.h"  // /export:... forwarders vers C:\Windows\System32\iphlpapi.dll
@@ -30,6 +32,8 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID) {
             swml::LogInit();
             swml::Log("StormworksModLoader 1.0 charge (proxy iphlpapi)");
             if (swml::InstallModsUi()) {
+                // Content mods overlay rom\ before the game reads it (authenticated build only).
+                swml::InstallContentOverlay(swml::ScanMods());
                 swml::Log("initialisation terminee");
             } else {
                 swml::Log("initialisation abandonnee : le jeu demarre sans modification");

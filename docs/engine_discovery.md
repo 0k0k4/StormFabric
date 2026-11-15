@@ -97,7 +97,7 @@ to activate an unknown build. The reviewed build's existing safety gate is retai
 
 ## Validation
 
-`cmd /c StormworksModLoader\tests\run_tests.bat` includes eight C++ suites plus C SDK
+`tests\run_tests.bat` (with `STORMWORKS_EXE` / `STORMWORKS_NEWER_EXE` set) includes these suites plus C SDK
 compilation. Both actual files are checked under simulated ASLR, including the
 complete reviewed memory witness set, UI API resolution and Lua/video/notifications.
 

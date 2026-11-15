@@ -97,6 +97,7 @@ struct JsonManifest {
     std::string version;
     std::string description;
     std::string mainDll;
+    std::string content;  // dossier de contenu (relatif au dossier du mod)
     std::vector<std::string> dependencies;
     std::vector<std::string> nativeDeps;
     bool hasEnabledDefault = false;
@@ -302,6 +303,8 @@ JsonManifest ParseModJson(const std::string& text) {
         } else if (k == "main" || k == "dll" || k == "entry" || k == "binary") {
             std::string v;
             if (cur.ParseString(v) && (m.mainDll.empty() || k == "main")) m.mainDll = v;
+        } else if (k == "content") {
+            cur.ParseString(m.content);
         } else if (k == "dependencies" || k == "deps") {
             cur.ParseStringList(m.dependencies);
         } else if (k == "native_deps" || k == "dll_dependencies" || k == "libs") {
@@ -523,6 +526,26 @@ std::vector<ModEntry> ScanMods() {
                     e.detail = "no DLL found";
                     e.loadState = ModLoadState::NoDll;
                     e.statusDetail = "NO DLL";
+                }
+
+                // Dossier de contenu superposé à rom\ : "content" de mod.json, sinon content\.
+                // Un chemin absolu ou remontant hors du dossier du mod est refusé.
+                std::string wantedContent = NormalizeRelPath(jm.content.empty() ? std::string("content") : jm.content);
+                if (!wantedContent.empty() && wantedContent.find("..") == std::string::npos &&
+                    wantedContent.find(':') == std::string::npos) {
+                    std::wstring candidate = e.dirPath + L"\\" + Utf8ToWide(wantedContent);
+                    DWORD attributes = GetFileAttributesW(candidate.c_str());
+                    // Un "main" annoncé mais absent reste une erreur : le contenu ne la masque pas.
+                    const bool missingMain = e.kind == ModKind::DirWithoutDll && !e.mainDll.empty();
+                    if (!missingMain && attributes != INVALID_FILE_ATTRIBUTES &&
+                        (attributes & FILE_ATTRIBUTE_DIRECTORY) && !(attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+                        e.contentPath = candidate;
+                        if (e.kind == ModKind::DirWithoutDll) {
+                            e.detail = "content only";
+                        } else {
+                            e.detail += " + content";
+                        }
+                    }
                 }
             } else if (EndsWithNoCase(wname, L".dll")) {
                 e.kind = ModKind::DllFile;

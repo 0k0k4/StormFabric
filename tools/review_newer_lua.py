@@ -9,7 +9,7 @@ import re
 import struct
 from pathlib import Path
 
-from compare_newer_offline import PE, ROOT, edge_target
+from compare_newer_offline import PE, ROOT, edge_target, reference_exe, newer_exe
 
 OLD_HASH = '55914301628a31b278ff1d4aa9fd0c0446341759bf72083a8e3aa1dff859e6c3'
 NEW_HASH = 'f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699'
@@ -25,10 +25,10 @@ def matches(pe, c):
 
 
 def main():
-    old = PE(ROOT / 'Stormworks/stormworks64.exe')
-    new = PE(Path(sys.argv[1] if len(sys.argv) > 1 else os.environ.get('STORMWORKS_NEWER_EXE', r'..\Stormworks_Newer\stormworks64.exe')))
+    old = PE(reference_exe())
+    new = PE(newer_exe())
     assert old.sha256 == OLD_HASH and new.sha256 == NEW_HASH
-    source = (ROOT / 'StormworksModLoader/src/native_lua.cpp').read_text(encoding='utf-8')
+    source = (ROOT / 'src/native_lua.cpp').read_text(encoding='utf-8')
     keys = sorted({int(x, 16) for x in re.findall(
         r'(?:g_base\s*\+\s*|EngineRva\(g_base,\s*)(0x[0-9a-fA-F]+)', source)})
     data = json.loads((Path(__file__).parent / 'discovery_contracts.json').read_text())
