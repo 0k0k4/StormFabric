@@ -10,7 +10,7 @@ Using an `iphlpapi.dll` proxy, StormFabric integrates a native **MODS** menu dir
 
 **Native in-game rendering — no external overlays or Dear ImGui.** All engine addresses, vtable offsets, and hooks remain contained inside the loader. Mods built with the SDK require zero hardcoded game addresses.
 
-> **Experimental Project.** Two exact executable builds currently have verified profiles; this is not universal across all game updates. World, entity, vehicle, player, and simulation tick services remain strictly disabled.
+> **Experimental Project.** Two exact executable builds currently have verified profiles; this is not universal across all game updates. Direct world, entity, vehicle, and player services remain disabled; on v1.15.23, mods reach the world through the simulation tick, game events, and the game's own `server.*` Lua API.
 
 ---
 

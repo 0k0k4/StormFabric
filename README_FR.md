@@ -11,8 +11,9 @@ et hooks du moteur restent dans le loader : les mods utilisant le SDK n'ont pas
 besoin d'adresses du jeu codées en dur.
 
 > **Projet expérimental.** Deux exécutables exacts disposent de profils validés ;
-> ce n'est pas un support automatique de toutes les versions. Les services monde,
-> entités, véhicules, joueurs et ticks de simulation restent indisponibles.
+> ce n'est pas un support automatique de toutes les versions. Les services directs monde,
+> entités, véhicules et joueurs restent indisponibles ; sur la v1.15.23, les mods agissent
+> sur le monde par le tick de simulation, les événements du jeu et l'API Lua `server.*` du jeu.
 
 ---
 

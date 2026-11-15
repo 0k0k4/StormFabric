@@ -40,14 +40,12 @@ jobs:
         run: |
           mkdir release_pkg
           copy build\iphlpapi.dll release_pkg\
-          mkdir release_pkg\mods\mc_lua_qol
-          copy build\examples\mc_lua_qol\mc_lua_qol.dll release_pkg\mods\mc_lua_qol\
-          copy build\examples\mc_lua_qol\mod.json release_pkg\mods\mc_lua_qol\
-          powershell Compress-Archive -Path release_pkg\* -DestinationPath StormFabric-v0.1.0-alpha.zip
+          copy "packaging\How to install.txt" release_pkg\
+          powershell Compress-Archive -Path release_pkg\* -DestinationPath StormFabric.zip
         shell: cmd
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: StormFabric-v0.1.0-alpha
-          path: StormFabric-v0.1.0-alpha.zip
+          name: StormFabric-${{ github.sha }}
+          path: StormFabric.zip
