@@ -1,0 +1,10 @@
+{
+  "id": "image_demo",
+  "name": "Image overlay demo",
+  "version": "1.0.0",
+  "author": "0k0k4",
+  "description": "Animated picture drawn by the loader's image overlay, painted from a mod thread. F9 toggles. No game addresses.",
+  "main": "sf_image_demo.dll",
+  "enabled_by_default": false,
+  "dependencies": []
+}

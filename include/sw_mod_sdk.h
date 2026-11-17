@@ -138,6 +138,8 @@ typedef struct SwVideoApi {
 #include "sw_sdk_p0.h"
 #include "sw_sdk_storage.h"
 #include "sw_sdk_lua.h"
+#include "sw_sdk_image.h"
+#include "sw_sdk_services.h"
 
 struct SwEngineApi {
     uint32_t abiVersion;
@@ -154,6 +156,11 @@ struct SwEngineApi {
     // unavailable. See SwNativeApi in sw_sdk_p0.h; abiVersion is unchanged so
     // existing mods keep working byte-for-byte.
     const SwNativeApi* native;
+    // Appended: check structSize before reading. Image overlay (sw_sdk_image.h); also
+    // check SW_CAP_NATIVE_IMAGE.
+    const SwImageApi* image;
+    // Appended: check structSize before reading. Services between mods (sw_sdk_services.h).
+    const SwServiceApi* services;
 };
 
 struct SwModHost {

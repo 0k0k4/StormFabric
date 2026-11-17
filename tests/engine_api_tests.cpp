@@ -79,6 +79,11 @@ void SetNativeLuaEnabled(bool enabled) { luaEnabled = enabled; }
 void ReleaseNativeLuaOwner(const SwModHost* owner) { releasedOwner = owner; }
 bool ValidateVideoProfile(uint8_t*) { return profileValid; }
 bool InstallNativeVideo(uint8_t*) { return true; }
+const SwImageApi* ImagePrimitives() { static SwImageApi api = {sizeof(SwImageApi)}; return &api; }
+bool ImageOverlayAvailable() { return false; }
+void ReleaseImageOwner(const SwModHost*) {}
+const SwServiceApi* ServicePrimitives() { static SwServiceApi api = {sizeof(SwServiceApi)}; return &api; }
+void ReleaseServiceOwner(const SwModHost*) {}
 bool VideoEnable(const SwModHost*) { return true; }
 void ReleaseNativeVideoOwner(const SwModHost*) {}
 const SwVideoApi* NativeVideoPrimitives() {
@@ -118,6 +123,9 @@ int main() {
     const SwEngineApi* api = swml::GetEngineApi();
     assert(api->abiVersion == SW_ENGINE_API_VERSION && api->structSize == sizeof(SwEngineApi));
     assert(api->ui && api->lua && api->ui->structSize == sizeof(SwUiApi));
+    assert(api->image && api->image->structSize == sizeof(SwImageApi));
+    assert(api->services && api->services->structSize == sizeof(SwServiceApi));
+    assert(!(swml::RuntimePrimitives()->capabilities() & SW_CAP_NATIVE_IMAGE)); // no SwapBuffers import here
 
     SwModHost a = {}, b = {}, unknown = {};
     a.log = b.log = &LogStub;

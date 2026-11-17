@@ -63,6 +63,17 @@ cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
    tests\notification_overlay_tests.cpp src\notification_overlay.cpp /Fo:build\tests\ /Fe:build\tests\notification_overlay_tests.exe || exit /b 1
 build\tests\notification_overlay_tests.exe || exit /b 1
 
+cl /nologo /O2 /MT /EHsc /std:c++17 /W4 tests\image_model_tests.cpp /Fo:build\tests\ /Fe:build\tests\image_model_tests.exe || exit /b 1
+build\tests\image_model_tests.exe || exit /b 1
+
+cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
+   tests\image_backend_tests.cpp src\mod_image.cpp src\mod_runtime.cpp /Fo:build\tests\ /Fe:build\tests\image_backend_tests.exe || exit /b 1
+
+cl /nologo /O2 /MT /EHsc /std:c++17 /W4 /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
+   tests\mod_services_tests.cpp src\mod_services.cpp src\mod_runtime.cpp /Fo:build\tests\ /Fe:build\tests\mod_services_tests.exe || exit /b 1
+build\tests\mod_services_tests.exe || exit /b 1
+build\tests\image_backend_tests.exe || exit /b 1
+
 cl /nologo /O2 /MT /EHsc /std:c++17 /W4 tests\video_model_tests.cpp /Fo:build\tests\ /Fe:build\tests\video_model_tests.exe || exit /b 1
 build\tests\video_model_tests.exe || exit /b 1
 

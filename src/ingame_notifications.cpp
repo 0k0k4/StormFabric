@@ -5,6 +5,7 @@
 #include "engine_bindings.h"
 #include "hook_transaction.h"
 #include "mod_native_ui.h"
+#include "mod_image.h"
 #include "mod_runtime.h"
 #include <windows.h>
 
@@ -48,6 +49,7 @@ void Update(Target& target, void* self, void* gameState, void* frame) {
     // UI pulses are not simulation ticks. Do not expose gameState as UI context.
     PumpModRuntime(SurfaceOf(target), Focused(), ModUiKeyboardCaptured(SurfaceOf(target), self));
     UpdateModUi(SurfaceOf(target), self);
+    NoteImageSurfacePulse(SurfaceOf(target));
 }
 void* Destroy(Target& target, void* self, unsigned flags) {
     ForgetModUi(SurfaceOf(target), self);

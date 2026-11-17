@@ -22,6 +22,7 @@
 #include "ingame_notifications.h"
 #include "mod_runtime.h"
 #include "mod_native_ui.h"
+#include "mod_image.h"
 #include "log.h"
 #include "mods_loader.h"
 #include "mods_scan.h"
@@ -980,6 +981,7 @@ void HkUiUpdate(void* ui, void* a, void* b, void* c) {
     const bool keyboardCaptured = Field<void*>(g_st.ctx, sw::off::kCtxFocused) != nullptr;
     PumpModRuntime(SW_SURFACE_MENU, foregroundPid == GetCurrentProcessId(), keyboardCaptured);
     UpdateModUi(SW_SURFACE_MENU, ui);
+    NoteImageSurfacePulse(SW_SURFACE_MENU);
 
     // Tick à chaque frame des mods chargés qui exportent SwModTick
     TickLoadedMods(g_st.ctx);

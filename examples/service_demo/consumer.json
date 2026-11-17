@@ -1,0 +1,10 @@
+{
+  "id": "service_consumer",
+  "name": "Service demo: consumer",
+  "version": "1.0.0",
+  "author": "0k0k4",
+  "description": "Uses the demo.counter service of service_provider and logs the result.",
+  "main": "sf_service_consumer.dll",
+  "enabled_by_default": false,
+  "dependencies": ["service_provider"]
+}
