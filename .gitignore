@@ -85,3 +85,8 @@ examples/content_demo/content/
 
 # Local test mods (not part of the loader repo)
 testmod/
+
+# Third-party SDKs downloaded locally (CEF...)
+third_party/
+# Source manifest embedded by examples/sf_browser/build.bat
+!examples/sf_browser/host/compatibility.manifest

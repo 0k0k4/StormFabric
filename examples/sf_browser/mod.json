@@ -1,0 +1,10 @@
+{
+  "id": "sf_browser",
+  "name": "StormFabric Browser (Chromium)",
+  "version": "0.1.0",
+  "author": "0k0k4",
+  "description": "Chromium (CEF) browser drawn over the game, offered to other mods as the 'browser' service. Runs in its own process. No game addresses.",
+  "main": "sf_browser.dll",
+  "enabled_by_default": false,
+  "dependencies": []
+}
