@@ -14,6 +14,7 @@
 #include "content_overlay.h"
 #include "log.h"
 #include "engine_api.h"
+#include "mod_services.h"
 
 namespace swml {
 namespace {
@@ -561,6 +562,18 @@ void SyncLoadedMods(std::vector<ModEntry>& mods, void* gameBase, void* uiCtx, vo
         inst->tickFn = FindExport<SwModTickFn>(hMain, "SwModTick", "StormworksModTick");
         inst->unloadFn = FindExport<SwModUnloadFn>(hMain, "SwModUnload", "StormworksModUnload",
                                                     "SwModShutdown");
+        {
+            // Services: the mod may only use tables of the mods it (transitively) depends on.
+            std::set<std::string> depKeys;
+            std::vector<int> stack(modDeps[idx].begin(), modDeps[idx].end());
+            while (!stack.empty()) {
+                const int d = stack.back();
+                stack.pop_back();
+                if (!depKeys.insert(LowerAscii(mods[d].name)).second) continue;
+                stack.insert(stack.end(), modDeps[d].begin(), modDeps[d].end());
+            }
+            SetServiceOwnerIdentity(&inst->host, key, depKeys);
+        }
         RegisterEngineApiOwner(&inst->host);
 
         // Appel de l'export d'initialisation optionnel SwModInit(const SwModHost*)

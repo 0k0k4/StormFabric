@@ -1,5 +1,5 @@
 @echo off
-rem Builds example mods (sw_core_lib, radar_telemetry, simple_dllmain_mod, mc_lua_qol, native_api_demo, video_fx, p0_demo, addon_lua_demo, content_demo).
+rem Builds example mods (sw_core_lib, radar_telemetry, simple_dllmain_mod, mc_lua_qol, native_api_demo, video_fx, p0_demo, image_demo, addon_lua_demo, content_demo).
 rem Requires MSVC x64 compiler (cl.exe).
 setlocal
 
@@ -92,6 +92,28 @@ cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /LD p0_demo\p0_demo.cpp ^
 copy /Y p0_demo\mod.json ..\build\examples\p0_demo\mod.json >nul
 copy /Y p0_demo\demo.lua ..\build\examples\p0_demo\demo.lua >nul
 copy /Y p0_demo\README.md ..\build\examples\p0_demo\README.md >nul
+
+rem 7b. Image overlay painted from a mod thread
+if not exist "..\build\examples\image_demo" mkdir "..\build\examples\image_demo"
+cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /LD image_demo\image_demo.cpp ^
+   /Fo:..\build\examples\image_demo\ /Fe:..\build\examples\image_demo\sf_image_demo.dll ^
+   /link /DLL /MANIFEST:NO /DEBUG:NONE || exit /b 1
+copy /Y image_demo\mod.json ..\build\examples\image_demo\mod.json >nul
+del /Q ..\build\examples\image_demo\*.obj ..\build\examples\image_demo\*.exp ..\build\examples\image_demo\*.lib >nul 2>&1
+
+rem 7c. Services between mods: a provider and a consumer that depends on it
+if not exist "..\build\examples\service_provider" mkdir "..\build\examples\service_provider"
+if not exist "..\build\examples\service_consumer" mkdir "..\build\examples\service_consumer"
+cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /LD service_demo\provider.cpp ^
+   /Fo:..\build\examples\service_provider\ /Fe:..\build\examples\service_provider\sf_service_provider.dll ^
+   /link /DLL /MANIFEST:NO /DEBUG:NONE || exit /b 1
+copy /Y service_demo\provider.json ..\build\examples\service_provider\mod.json >nul
+cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /LD service_demo\consumer.cpp ^
+   /Fo:..\build\examples\service_consumer\ /Fe:..\build\examples\service_consumer\sf_service_consumer.dll ^
+   /link /DLL /MANIFEST:NO /DEBUG:NONE || exit /b 1
+copy /Y service_demo\consumer.json ..\build\examples\service_consumer\mod.json >nul
+del /Q ..\build\examples\service_provider\*.obj ..\build\examples\service_provider\*.exp ..\build\examples\service_provider\*.lib >nul 2>&1
+del /Q ..\build\examples\service_consumer\*.obj ..\build\examples\service_consumer\*.exp ..\build\examples\service_consumer\*.lib >nul 2>&1
 
 rem 8. Native library for addon/mission scripts (newer reviewed build only)
 cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /LD addon_lua_demo\addon_lua_demo.cpp ^

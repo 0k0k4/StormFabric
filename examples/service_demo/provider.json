@@ -1,0 +1,10 @@
+{
+  "id": "service_provider",
+  "name": "Service demo: provider",
+  "version": "1.0.0",
+  "author": "0k0k4",
+  "description": "Publishes the demo.counter service for other mods. No game addresses.",
+  "main": "sf_service_provider.dll",
+  "enabled_by_default": false,
+  "dependencies": []
+}

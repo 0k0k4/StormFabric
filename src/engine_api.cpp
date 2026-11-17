@@ -4,6 +4,8 @@
 #include "native_video.h"
 #include "mod_runtime.h"
 #include "mod_native_ui.h"
+#include "mod_image.h"
+#include "mod_services.h"
 #include "mod_storage.h"
 #include "native_prims.h"
 #include "log.h"
@@ -334,13 +336,17 @@ void InitializeEngineApi(const sw::Api& api) {
     g_engine.storage = GetStorageApi();
     g_engine.world = nullptr;
     g_engine.native = native::NativePrimitives();
+    g_engine.image = ImagePrimitives();
+    g_engine.services = ServicePrimitives();
+    const bool imageAvailable = ImageOverlayAvailable();
     SetRuntimeCapabilities(SW_CAP_UI_EVENTS | SW_CAP_MAIN_THREAD_TASKS |
         SW_CAP_KEYBOARD_ACTIONS | SW_CAP_MOD_STORAGE |
         (g_luaAvailable ? SW_CAP_LUA_EXTRAS | SW_CAP_LUA_EVENTS : 0) |
         (g_qolAvailable ? SW_CAP_LUA_QOL : 0) |
         (g_addonLuaAvailable ? SW_CAP_LUA_ADDON : 0) |
         (g_simTickAvailable ? SW_CAP_SIMULATION_TICK : 0) |
-        (g_gameEventsAvailable ? SW_CAP_GAME_EVENTS : 0));
+        (g_gameEventsAvailable ? SW_CAP_GAME_EVENTS : 0) |
+        (imageAvailable ? SW_CAP_NATIVE_IMAGE : 0));
     LogInfo("Engine API v%u initialized (UI available, Lua %s, QoL/editor %s, video %s, addon Lua %s, simulation tick %s, game events %s)", g_engine.abiVersion,
             g_luaAvailable ? "validated" : "unavailable", g_qolAvailable ? "validated" : "unavailable",
             g_videoAvailable ? "validated" : "unavailable", g_addonLuaAvailable ? "validated" : "unavailable",
@@ -359,6 +365,8 @@ void ReleaseEngineApiOwner(const SwModHost* owner) {
     // Restore this mod's inline hooks BEFORE its DLL is freed.
     native::ReleaseNativeOwner(owner);
     ReleaseModUiOwner(owner);
+    ReleaseImageOwner(owner);
+    ReleaseServiceOwner(owner);
     ReleaseRuntimeOwner(owner);
     ReleaseModStorageOwner(owner);
     for (auto& token : g_clickTokens) {

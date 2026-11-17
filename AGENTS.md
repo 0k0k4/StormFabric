@@ -40,6 +40,8 @@ To change the **loader** itself (not a mod), read `README.md` and `docs/` first.
 | Give new functions to addon scripts (`script.lua`) | DLL + addon library | §7 |
 | Give new functions to microcontrollers | DLL + microcontroller library | §8 |
 | Window/HUD, keyboard shortcut, storage | DLL + `nativeUi` / `input` / `storage` | §9 |
+| Draw your own pixels over the game (web view, video) | DLL + `image` | §9 |
+| Offer functions to other mods / use another mod's functions | DLL + `services` | §9 |
 
 One mod can combine a DLL **and** content.
 
@@ -306,13 +308,34 @@ SW_MOD_EXPORT void SwModUnload(void) { g_host = nullptr; }
 - **Keyboard shortcuts** (`host->api->input`): `registerAction`, then `bindKey(vk, modifiers)`;
   presses arrive as `SW_EVENT_ACTION` events (`runtime->subscribe`).
 - **HUD / windows** (`host->api->nativeUi`, UI thread only): see `examples/p0_demo`.
+- **Pixel images** (`host->api->image`, **any thread**, `SW_CAP_NATIVE_IMAGE`; check
+  `api->structSize` covers `image`): `create` a BGRA/RGBA image for a surface, `update` it
+  with pixels (whole or a region), place it with `setRect` in window pixels. Drawn over the
+  whole frame before present; the base for web views or video. `setInputCallback` makes it
+  interactive (mouse over it and keys while it has focus go to the mod instead of the game;
+  callback on the window thread, keep it short). See `examples/image_demo` and
+  `docs/native_image.md`.
+- **Services between mods** (`host->api->services`; check `api->structSize` covers
+  `services`): a provider `publish`es a `static const` function table under a name and a
+  version (`SW_SERVICE_VERSION(major, minor)`); a consumer `get`s it, and the loader only
+  allows that when the provider is in the consumer's mod.json `dependencies` (so the table
+  outlives the consumer). Ship the table's struct in a header; first member `structSize`,
+  append only. A provider that keeps per-consumer objects or callbacks must register
+  `setOwnerReleaseCallback` and drop them there. See `examples/service_demo` and
+  `docs/services.md`.
+- **Web pages (Chromium)**: depend on the `sf_browser` mod and use its `browser` service
+  (`examples/sf_browser/sf_browser_api.h`): `create` a page with a URL, size and placement,
+  exchange strings with it (`window.sfBrowser.send` / `postMessage`). Chromium runs in its
+  own process. See `examples/sf_browser/README.md` and `examples/sf_browser/demo`.
 - **Tasks** (`runtime->runOnGameThread`, `runtime->schedule`): run on the UI thread, can be
   requested from the simulation thread.
 - **Low level** (`host->api->native`: inline hooks, memory): last resort, only with
   validated signatures (`findSignature`); never a hardcoded address.
 
 References: `include/sw_mod_sdk.h`, `include/sw_sdk_p0.h`, `include/sw_sdk_lua.h`,
-`include/sw_sdk_storage.h`, and `docs/addon_lua.md`, `docs/native_api.md`, `docs/p0_sdk.md`.
+`include/sw_sdk_storage.h`, `include/sw_sdk_image.h`, and `docs/addon_lua.md`,
+`docs/native_api.md`, `docs/p0_sdk.md`, `docs/native_image.md`, `docs/services.md`
+(`include/sw_sdk_services.h`).
 
 ## 10. Building
 

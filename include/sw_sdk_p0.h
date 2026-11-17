@@ -15,7 +15,8 @@ typedef enum SwCapability {
     SW_CAP_LUA_EVENTS=1ull<<11, SW_CAP_LUA_QOL=1ull<<12,
     SW_CAP_LUA_ADDON=1ull<<13, // addon/mission script VMs: registerAddonLibrary + ADDON_LUA events
     SW_CAP_SIMULATION_TICK=1ull<<14, // runtime->subscribeSimulationTick (does not imply SIMULATION_EVENTS)
-    SW_CAP_GAME_EVENTS=1ull<<15      // runtime->subscribeGameEvent (addon callbacks such as onPlayerJoin)
+    SW_CAP_GAME_EVENTS=1ull<<15,     // runtime->subscribeGameEvent (addon callbacks such as onPlayerJoin)
+    SW_CAP_NATIVE_IMAGE=1ull<<16     // api->image (sw_sdk_image.h): pixel overlay drawn before present
 } SwCapability;
 typedef enum SwUiSurface { SW_SURFACE_MENU=0, SW_SURFACE_HUD=1, SW_SURFACE_EDITOR=2, SW_SURFACE_NONE=3 } SwUiSurface;
 typedef enum SwEventType {
