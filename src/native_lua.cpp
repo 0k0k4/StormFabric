@@ -2317,9 +2317,24 @@ SwLuaStatus ExtrasCall(const SwModHost* owner, void* state, int argumentCount, i
     }
     return SW_LUA_CALL_FAILED;
 }
+// lua_pushvalue: copies one TValue (value + tag) to the top. Pushing a reference to a
+// value already on the stack needs no GC barrier (the stack is always traversed).
+SwLuaStatus ExtrasPushValue(const SwModHost* owner, void* state, int index) {
+    auto status = ExtrasContext(owner, state);
+    if (status != SW_LUA_OK) return status;
+    int absolute = 0;
+    status = StackIndex(state, index, &absolute);
+    if (status != SW_LUA_OK) return status;
+    if (!ApiCheckStack(state, 1)) return SW_LUA_STACK_LIMIT;
+    // After checkStack: growing the stack may have moved it.
+    uintptr_t L = reinterpret_cast<uintptr_t>(state), top = *(uintptr_t*)(L + 0x10);
+    memcpy(reinterpret_cast<void*>(top), reinterpret_cast<const void*>(g_index2addr(L, absolute)), 16);
+    *(uintptr_t*)(L + 0x10) = top + 16;
+    return SW_LUA_OK;
+}
 const SwLuaExtrasApi g_luaExtras = {sizeof(SwLuaExtrasApi), &ExtrasPushString, &ExtrasPushNil,
     &ExtrasPushInteger, &ExtrasCreateTable, &ExtrasGetField, &ExtrasSetField, &ExtrasGetType,
-    &ExtrasPop, &ExtrasRaiseError, &ExtrasCopyString, &ExtrasGetGlobal, &ExtrasCall};
+    &ExtrasPop, &ExtrasRaiseError, &ExtrasCopyString, &ExtrasGetGlobal, &ExtrasCall, &ExtrasPushValue};
 
 struct QolCallData { int (*fn)(uintptr_t); int result; };
 void QolCallLeaf(uintptr_t L, void* data) {

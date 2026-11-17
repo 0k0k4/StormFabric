@@ -163,6 +163,24 @@ int Exercise(void* lua, void*) {
     assert(api->pop(&owner, lua, -1) == SW_LUA_OUT_OF_RANGE);
     assert(api->pop(&owner, lua, 5) == SW_LUA_OUT_OF_RANGE);
     assert(api->pop(&owner, lua, 4) == SW_LUA_OK);
+    // pushValue copies value and tag, from a positive or negative index.
+    assert(api->pushValue(&owner, lua, 1) == SW_LUA_OUT_OF_RANGE && ApiGetTop(lua) == 0);
+    assert(api->pushInteger(&owner, lua, 42) == SW_LUA_OK);
+    assert(api->pushValue(&owner, lua, -1) == SW_LUA_OK && ApiGetTop(lua) == 2);
+    assert(api->getType(&owner, lua, 2, &type) == SW_LUA_OK && type == SW_LUA_TYPE_INTEGER);
+    assert(*reinterpret_cast<int64_t*>(FakeIndex(L, 2)) == 42);
+    ApiPushBool(lua, true);
+    relocateNext = true; // the copy must be read after the stack moved
+    assert(api->pushValue(&owner, lua, 1) == SW_LUA_OK && ApiGetTop(lua) == 4);
+    assert(api->getType(&owner, lua, 4, &type) == SW_LUA_OK && type == SW_LUA_TYPE_INTEGER);
+    assert(*reinterpret_cast<int64_t*>(FakeIndex(L, 4)) == 42);
+    assert(api->pushValue(&owner, lua, 0) == SW_LUA_OUT_OF_RANGE);
+    assert(api->pushValue(&owner, lua, -5) == SW_LUA_OUT_OF_RANGE);
+    assert(api->pushValue(&otherOwner, lua, 1) == SW_LUA_INVALID_CONTEXT);
+    stackAvailable = false;
+    assert(api->pushValue(&owner, lua, 1) == SW_LUA_STACK_LIMIT && ApiGetTop(lua) == 4);
+    stackAvailable = true;
+    assert(api->pop(&owner, lua, 4) == SW_LUA_OK);
     const char binary[] = {'h', '\0', static_cast<char>(0xc3), static_cast<char>(0xa9)};
     assert(api->pushString(&owner, lua, binary, sizeof(binary)) == SW_LUA_OK);
     char out[8] = {}; size_t length = 99;

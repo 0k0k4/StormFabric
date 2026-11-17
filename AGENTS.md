@@ -214,6 +214,11 @@ Tick and event rules:
   negative index silently returns the default. The `extras` functions (`getType`,
   `copyString`, `getField`, `setField`, `pop`…) accept both. To read the top of the stack
   with an `arg*` function, use `getTop(L)`.
+- **Passing a stack value to `call`**: `call` wants the function *below* its arguments, so a
+  value already on the stack (an argument received by a library function) must be copied
+  on top with `extras->pushValue(host, L, index)` (appended member: check `structSize`).
+  Example: `getGlobal("next")`, `pushValue(1)`, `pushNil` → `call(2, 2)` iterates a table
+  passed by the script. There is no `lua_remove`: values pushed stay until you `pop` them.
 
 ## 7. Library for addon scripts
 

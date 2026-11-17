@@ -76,6 +76,12 @@ typedef struct SwLuaExtrasApi {
     // SW_LUA_UNSUPPORTED when the protected call is not certified for the running build.
     SwLuaStatus (*call)(const SwModHost* owner, void* state, int argumentCount, int resultCount,
                         char* errorOut, size_t errorCapacity);
+
+    // ---- Appended: check structSize before reading -------------------------------------
+    // Pushes a copy of the value at `index` (like lua_pushvalue): the same table or
+    // function, not a deep copy. Lets a mod pass a value it received (an argument) to
+    // `call`, e.g. next(t, k) or rawset(t, i, v). Works on both reviewed builds.
+    SwLuaStatus (*pushValue)(const SwModHost* owner, void* state, int index);
 } SwLuaExtrasApi;
 #ifdef __cplusplus
 }

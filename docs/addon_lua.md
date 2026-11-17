@@ -108,6 +108,27 @@ Vérifié en jeu le 2026-11-15 : depuis la commande `?sf`, le mod de démo a app
 jeu : le chemin d'erreur (fonction Lua qui lève une erreur), couvert seulement par
 les tests hors jeu.
 
+### Copier une valeur de la pile : `pushValue`
+
+Ajouté après `call` (vérifier `structSize`). `pushValue(owner, L, index)` pousse une
+copie de la valeur à `index` (comme `lua_pushvalue`) : la même table ou fonction, pas
+une copie profonde. Sans lui, une valeur déjà sur la pile (un argument reçu) ne peut pas
+être passée à `call`, qui veut la fonction **sous** ses arguments. Exemples :
+parcourir une table reçue avec `next(t, k)`, remplir un tableau avec `rawset(t, i, v)`.
+
+```cpp
+// Parcourt la table en argument 1 : next(t, nil), puis next(t, k)...
+x->getGlobal(host, L, "next");
+x->pushValue(host, L, 1);   // t
+x->pushNil(host, L);        // première clé
+if (x->call(host, L, 2, 2, error, sizeof(error)) == SW_LUA_OK) { /* clé en -2, valeur en -1 */ }
+```
+
+Copie directe d'une valeur de 16 octets vers le sommet, sans fonction du jeu : marche sur
+les deux builds. `call` reste réservé au build récent. Utilisé par le mod `http`
+(`json_encode`, tableaux de `json_decode`). Couvert par `tests/p0_lua_backend_tests.cpp`
+(index positifs et négatifs, pile déplacée par `checkStack`) ; non vérifié en jeu.
+
 ## Tick de simulation : `runtime->subscribeSimulationTick`
 
 Un mod peut agir à chaque mise à jour de la simulation, sans script :
