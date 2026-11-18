@@ -202,6 +202,52 @@ int main() {
     assert(swml::DrawImageOverlay(window.dc));
     Pixel(63, 31, p); assert(Near(p[0], 255) && Near(p[1], 255) && Near(p[2], 255));
 
+    // ---- Texture for a native monitor draw: uploaded, other bindings untouched ----
+    {
+        SwHandle source = 0;
+        assert(api->create(&owner, SW_SURFACE_HUD, 2, 2, SW_IMAGE_RGBA8, 0, &source) == SW_OK);
+        assert(api->setVisible(&owner, source, false) == SW_OK); // monitor only, never on screen
+        const uint8_t quad[] = {10, 20, 30, 255, 40, 50, 60, 255, 70, 80, 90, 255, 100, 110, 120, 255};
+        assert(api->update(&owner, source, nullptr, quad, 8) == SW_OK);
+        glBindTexture(GL_TEXTURE_2D, mine);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 7);
+        unsigned sourceTex = 0;
+        assert(!swml::ImageTextureForDraw(&other, source, false, &sourceTex)); // another mod's image
+        assert(swml::ImageTextureForDraw(&owner, source, false, &sourceTex) && sourceTex && sourceTex != mine);
+        GLint bound = 0, row = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
+        glGetIntegerv(GL_UNPACK_ROW_LENGTH, &row);
+        assert(GLuint(bound) == mine && row == 7);
+        uint8_t back[16] = {};
+        glBindTexture(GL_TEXTURE_2D, sourceTex);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, back);
+        glBindTexture(GL_TEXTURE_2D, mine);
+        // GL orientation for native monitor UVs: the image's bottom row comes first.
+        assert(!memcmp(back, quad + 8, 8) && !memcmp(back + 8, quad, 8));
+        const uint8_t redPixel[] = {255, 0, 0, 255};
+        SwImageRegion lastPixel = {1, 1, 1, 1};
+        assert(api->update(&owner, source, &lastPixel, redPixel, 4) == SW_OK);
+        assert(swml::ImageTextureForDraw(&owner, source, false, &sourceTex)); // dirty region re-uploaded
+        glBindTexture(GL_TEXTURE_2D, sourceTex);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, back);
+        glBindTexture(GL_TEXTURE_2D, mine);
+        assert(back[4] == 255 && back[5] == 0 && back[0] == 70 && back[8] == 10); // image (1,1) = first row, x 1
+        // sRGB copy for an sRGB native texture: same stored bytes, sRGB internal format.
+        assert(swml::ImageTextureForDraw(&owner, source, true, &sourceTex));
+        GLint internal = 0;
+        glBindTexture(GL_TEXTURE_2D, sourceTex);
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, 0x1003, &internal);
+        memset(back, 0, sizeof(back));
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, back);
+        glBindTexture(GL_TEXTURE_2D, mine);
+        assert(internal == 0x8C43 && back[4] == 255 && back[0] == 70 && back[8] == 10);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        assert(api->destroy(&owner, source) == SW_OK);
+        assert(!swml::ImageTextureForDraw(&owner, source, false, &sourceTex));
+        assert(glGetError() == GL_NO_ERROR);
+    }
+
     // ---- Input: mouse and keyboard routed to interactive images ----
     swml::SetImageInputCursorCheck(false); // the test may run with a hidden system cursor
     SwHandle box = 0, top = 0;

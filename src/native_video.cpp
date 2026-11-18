@@ -39,6 +39,9 @@ struct Record {
     void* overlay = nullptr;
     int width = 0, height = 0;
     VideoEffects effects;
+    uint64_t sourceImage = 0;                 // image shown instead of the video signal
+    const SwModHost* sourceHost = nullptr;
+    std::shared_ptr<Lease> sourceOwner;
     std::shared_ptr<Lease> effectOwner, captureOwner;
     std::shared_ptr<const VideoCapture> latest;
     // GPU fields below are used ONLY on the native render thread/context.
@@ -56,14 +59,43 @@ struct DrawContext {
     std::shared_ptr<Record> record;
     std::shared_ptr<const VideoCapture> latest;
     VideoEffects effects;
-    std::shared_ptr<Lease> effectOwner, captureOwner;
+    std::shared_ptr<Lease> effectOwner, captureOwner, sourceOwner;
+    uint64_t sourceImage = 0;
+    const SwModHost* sourceHost = nullptr;
 };
 thread_local DrawContext* g_draw = nullptr;
 struct GpuContext {
     VideoEffects effects;
     int width = 0, height = 0;
     std::shared_ptr<Lease> owner;
+    uint64_t sourceImage = 0;
+    const SwModHost* sourceHost = nullptr;
+    std::shared_ptr<Lease> sourceOwner;
+    bool sourceSrgb = false; // the native video texture is sRGB-encoded
 };
+std::atomic<VideoImageTextureFn> g_imageResolver{nullptr};
+// Native video texture id -> sRGB internal format (render thread only).
+std::map<GLuint, bool> g_srgbTextures;
+bool IsSrgbTexture(GLuint texture, GLint* format = nullptr) {
+    auto it = g_srgbTextures.find(texture);
+    if (it != g_srgbTextures.end() && !format) return it->second;
+    GLint bound = 0, internal = 0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D,&bound);
+    glBindTexture(GL_TEXTURE_2D,texture);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D,0,0x1003 /*GL_TEXTURE_INTERNAL_FORMAT*/,&internal);
+    glBindTexture(GL_TEXTURE_2D,GLuint(bound));
+    if (format) *format = internal;
+    // Decode the image to linear when the native texture holds linear light: an sRGB format
+    // (decoded by the sampler) or a floating-point HDR target (the camera writes linear colour,
+    // e.g. GL_RGBA16F on 1.15.23). Only a plain 8-bit UNORM target keeps the bytes as they are.
+    const bool srgbFormat = internal == 0x8C43 || internal == 0x8C41 || internal == 0x8C42 || internal == 0x8C40;
+    const bool floatFormat = internal == 0x881A || internal == 0x8814 || internal == 0x881B || internal == 0x8815 ||
+        internal == 0x8C3A || internal == 0x822F || internal == 0x8230 || internal == 0x822D || internal == 0x822E;
+    const bool srgb = srgbFormat || floatFormat;
+    if (g_srgbTextures.size() > 256) g_srgbTextures.clear();
+    g_srgbTextures[texture] = srgb;
+    return srgb;
+}
 thread_local GpuContext* g_gpu = nullptr;
 
 // Extension entrypoints are resolved by public OpenGL names, not game RVAs.
@@ -198,6 +230,12 @@ bool Request(const SwModHost* h, void* L, bool enable) {
     auto o = Owner(h, L); if (!o) return false;
     g_draw->captureOwner = enable ? o : nullptr; return true;
 }
+bool Source(const SwModHost* h, void* L, uint64_t image) {
+    auto o = Owner(h, L); if (!o) return false;
+    g_draw->sourceImage = image; g_draw->sourceHost = image ? h : nullptr;
+    g_draw->sourceOwner = image ? o : nullptr;
+    return true;
+}
 bool Pixel(const SwModHost* h, void* L, int x, int y, SwVideoPixel* out) {
     auto o = Owner(h, L); if (!o) return false;
     if (!out || x < 0 || y < 0 || x >= g_draw->record->width || y >= g_draw->record->height) return false;
@@ -251,6 +289,10 @@ void DrawMonitor(void* a, void* b, void* c, void* target, int* size,
         frame.record->effects = error && *error ? VideoEffects{} : frame.effects;
         frame.record->effectOwner = frame.effectOwner;
         frame.record->captureOwner = frame.captureOwner;
+        const bool failed = error && *error;
+        frame.record->sourceImage = failed ? 0 : frame.sourceImage;
+        frame.record->sourceHost = failed ? nullptr : frame.sourceHost;
+        frame.record->sourceOwner = failed ? nullptr : frame.sourceOwner;
     }
 }
 
@@ -301,10 +343,45 @@ Gl::Program& Program(Gl& g, GLuint original) {
     return p;
 }
 void APIENTRY DrawElements(GLenum mode, GLsizei count, GLenum type, const void* indices) {
-    if (!g_gpu || !LeaseActive(g_gpu->owner) || g_gpu->effects.identity() || !wglGetCurrentContext()) {
-        g_drawElements(mode,count,type,indices); return;
+    if (!g_gpu || !wglGetCurrentContext()) { g_drawElements(mode,count,type,indices); return; }
+    // An image source replaces the video texture; it needs the FX program (Y flip, alpha).
+    GLuint sourceTexture = 0;
+    auto resolver = g_imageResolver.load();
+    if (g_gpu->sourceImage && LeaseActive(g_gpu->sourceOwner) && resolver) {
+        unsigned texture = 0;
+        if (resolver(g_gpu->sourceHost, g_gpu->sourceImage, g_gpu->sourceSrgb, &texture)) sourceTexture = texture;
+        static std::atomic<bool> logged{false};
+        if (!sourceTexture && !logged.exchange(true))
+            LogError("Video: monitor image source %llu has no texture yet (image missing or not painted)",
+                     static_cast<unsigned long long>(g_gpu->sourceImage));
     }
+    const bool effects = LeaseActive(g_gpu->owner) && !g_gpu->effects.identity();
+    if (!effects && !sourceTexture) { g_drawElements(mode,count,type,indices); return; }
     auto& g = CurrentGl();
+    if (sourceTexture && !effects) {
+        // Image only: the game's own program, with the image on the video unit and
+        // alpha_video at 1 (shown even without a camera signal); both restored afterwards.
+        GLint program = 0; glGetIntegerv(0x8b8d,&program);
+        if (!program || !g.effects) { g_drawElements(mode,count,type,indices); return; }
+        auto& p = Program(g,GLuint(program));
+        if (p.original[2] < 0 || p.original[4] < 0) { g_drawElements(mode,count,type,indices); return; }
+        GLint unit = 0, active = 0, previous = 0; GLfloat alphaVideo = 0;
+        g.GetUniformiv(GLuint(program),p.original[2],&unit);
+        g.GetUniformfv(GLuint(program),p.original[4],&alphaVideo);
+        glGetIntegerv(0x84e0,&active);
+        g.ActiveTexture(GLenum(0x84c0 + unit));
+        glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous);
+        glBindTexture(GL_TEXTURE_2D,sourceTexture);
+        g.Uniform1f(p.original[4],1.0f);
+        g_drawElements(mode,count,type,indices);
+        g.Uniform1f(p.original[4],alphaVideo);
+        glBindTexture(GL_TEXTURE_2D,GLuint(previous));
+        g.ActiveTexture(GLenum(active));
+        static std::atomic<bool> logged{false};
+        if (!logged.exchange(true))
+            LogInfo("Video: monitor image source drawn (unit %d, texture %u, native alpha_video %.2f)",unit,sourceTexture,alphaVideo);
+        return;
+    }
     GLint original = 0; glGetIntegerv(0x8b8d,&original);
     if (!g.effects || !original) { g_drawElements(mode,count,type,indices); return; }
     auto& p = Program(g,GLuint(original));
@@ -324,13 +401,26 @@ void APIENTRY DrawElements(GLenum mode, GLsizei count, GLenum type, const void* 
         g.Uniform1i(p.custom[i+2],samplers[i]); g.Uniform1f(p.custom[i+4],alpha[i]);
     }
     g.Uniform4fv(p.custom[6],1,color);
-    const auto& fx = g_gpu->effects;
-    // Public coordinates are top-left pixels; native monitor UV Y is bottom-to-top.
+    const VideoEffects fx = effects ? g_gpu->effects : VideoEffects{};
+    // Public coordinates are top-left pixels; native monitor UV Y is bottom-to-top (the image
+    // source texture is already in that orientation).
     g.Uniform4f(g.GetUniformLocation(p.id,"fx_transform"),fx.offsetX / g_gpu->width,
                 -fx.offsetY / g_gpu->height,fx.scaleX,fx.scaleY);
     g.Uniform4f(g.GetUniformLocation(p.id,"fx_tint"),fx.r,fx.g,fx.b,fx.a);
     g.Uniform2f(g.GetUniformLocation(p.id,"fx_filter"),fx.grayscale,fx.invert);
+    GLint active = 0, previous = 0;
+    if (sourceTexture) {
+        g.Uniform1f(p.custom[4],1.0f); // alpha_video: shown even without a camera signal
+        glGetIntegerv(0x84e0,&active);
+        g.ActiveTexture(GLenum(0x84c0 + samplers[0])); // the unit texture_video samples
+        glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous);
+        glBindTexture(GL_TEXTURE_2D,sourceTexture);
+    }
     g_drawElements(mode,count,type,indices);
+    if (sourceTexture) {
+        glBindTexture(GL_TEXTURE_2D,GLuint(previous));
+        g.ActiveTexture(GLenum(active));
+    }
     g.UseProgram(GLuint(original)); // native state cache remains valid
 }
 
@@ -442,6 +532,8 @@ void DrawGpu(void* shader, void* batch, void* video, void* overlay, void* world,
         if (record && record->active) {
             frame.effects = record->effects; frame.width = record->width; frame.height = record->height;
             frame.owner = record->effectOwner; capture = record->captureOwner;
+            frame.sourceImage = record->sourceImage; frame.sourceHost = record->sourceHost;
+            frame.sourceOwner = record->sourceOwner;
         }
     }
     if (wglGetCurrentContext()) {
@@ -451,6 +543,26 @@ void DrawGpu(void* shader, void* batch, void* video, void* overlay, void* world,
         else if (record && gl.capture && record->context == wglGetCurrentContext()) {
             DeleteSlots(gl,*record); record->source = 0;
             std::lock_guard<std::mutex> lock(g_mutex); record->latest.reset();
+        }
+    }
+    if (frame.sourceImage && wglGetCurrentContext()) {
+        // Match the native texture's encoding so the shader decodes the image the same way.
+        const GLuint native = TextureId(video);
+        GLint format = 0;
+        static std::atomic<bool> logged{false};
+        const bool first = !logged.exchange(true);
+        frame.sourceSrgb = native && IsSrgbTexture(native, first ? &format : nullptr);
+        if (first) {
+            GLint w = 0, h = 0, bound = 0;
+            if (native) {
+                glGetIntegerv(GL_TEXTURE_BINDING_2D,&bound);
+                glBindTexture(GL_TEXTURE_2D,native);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_WIDTH,&w);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_HEIGHT,&h);
+                glBindTexture(GL_TEXTURE_2D,GLuint(bound));
+            }
+            LogInfo("Video: monitor %dx%d logical, native video texture %u is %dx%d format 0x%X (image decoded to linear %d), alpha_video arg %.2f",
+                    frame.width,frame.height,native,w,h,format,int(frame.sourceSrgb),alphaVideo);
         }
     }
     auto previous = g_gpu; g_gpu = frame.width > 0 && frame.height > 0 ? &frame : nullptr;
@@ -565,9 +677,10 @@ bool InstallNativeVideo(uint8_t* base) {
 }
 const SwVideoApi* NativeVideoPrimitives() {
     static const SwVideoApi api = {sizeof(SwVideoApi),&Enable,&ReleaseNativeVideoOwner,
-        &Offset,&Scale,&Tint,&Filter,&Reset,&Request,&Pixel};
+        &Offset,&Scale,&Tint,&Filter,&Reset,&Request,&Pixel,&Source};
     return &api;
 }
+void SetVideoImageResolver(VideoImageTextureFn resolver) { g_imageResolver = resolver; }
 void ReleaseNativeVideoOwner(const SwModHost* owner) {
     std::lock_guard<std::mutex> lock(g_mutex);
     auto it = g_owners.find(owner);

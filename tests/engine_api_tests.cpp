@@ -82,6 +82,8 @@ bool InstallNativeVideo(uint8_t*) { return true; }
 const SwImageApi* ImagePrimitives() { static SwImageApi api = {sizeof(SwImageApi)}; return &api; }
 bool ImageOverlayAvailable() { return false; }
 void ReleaseImageOwner(const SwModHost*) {}
+bool ImageTextureForDraw(const SwModHost*, uint64_t, bool, unsigned*) { return false; }
+void SetVideoImageResolver(bool (*)(const SwModHost*, uint64_t, bool, unsigned*)) {}
 const SwServiceApi* ServicePrimitives() { static SwServiceApi api = {sizeof(SwServiceApi)}; return &api; }
 void ReleaseServiceOwner(const SwModHost*) {}
 bool VideoEnable(const SwModHost*) { return true; }
