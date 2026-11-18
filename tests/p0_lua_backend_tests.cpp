@@ -177,6 +177,12 @@ int Exercise(void* lua, void*) {
     assert(api->pushValue(&owner, lua, 0) == SW_LUA_OUT_OF_RANGE);
     assert(api->pushValue(&owner, lua, -5) == SW_LUA_OUT_OF_RANGE);
     assert(api->pushValue(&otherOwner, lua, 1) == SW_LUA_INVALID_CONTEXT);
+    // vmId: the generation of the VM this callback runs in, only for the calling owner.
+    uint64_t vm = 0;
+    assert(api->vmId(&owner, lua, &vm) == SW_LUA_OK && vm != 0);
+    uint64_t other = 123;
+    assert(api->vmId(&otherOwner, lua, &other) == SW_LUA_INVALID_CONTEXT && other == 0);
+    assert(api->vmId(&owner, lua, nullptr) == SW_LUA_INVALID_ARGUMENT);
     stackAvailable = false;
     assert(api->pushValue(&owner, lua, 1) == SW_LUA_STACK_LIMIT && ApiGetTop(lua) == 4);
     stackAvailable = true;

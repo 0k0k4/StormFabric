@@ -56,6 +56,8 @@ struct Image {
     // Render thread only.
     HGLRC textureContext = nullptr;
     GLuint texture = 0;
+    GLuint flipped = 0;        // bottom row first (GL orientation), for native monitor draws
+    bool flippedStale = true, flippedSrgb = false;
 };
 std::mutex g_mutex;
 std::map<SwHandle, std::shared_ptr<Image>> g_images;
@@ -146,10 +148,15 @@ struct Gl {
     GL_PROC(BlendFuncSeparate, void, GLenum, GLenum, GLenum, GLenum)
     GL_PROC(BlendEquationSeparate, void, GLenum, GLenum)
     GL_PROC(BindSampler, void, GLuint, GLuint) // optional (GL 3.3)
+    GL_PROC(GenFramebuffers, void, GLsizei, GLuint*)
+    GL_PROC(FramebufferTexture2D, void, GLenum, GLenum, GLenum, GLuint, GLint)
+    GL_PROC(BlitFramebuffer, void, GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLbitfield, GLenum)
+    GL_PROC(CheckFramebufferStatus, GLenum, GLenum)
 #undef GL_PROC
     bool tried = false, ready = false;
     GLuint program = 0, vao = 0;
     GLint uScreen = -1, uRect = -1, uOpacity = -1, uStraight = -1, uTexture = -1;
+    GLuint blitFramebuffers[2] = {0, 0};
 };
 std::map<HGLRC, Gl> g_contexts; // render thread only
 
@@ -209,6 +216,7 @@ Gl& CurrentGl(HGLRC context) {
     LOAD(DeleteProgram) LOAD(UseProgram) LOAD(GetUniformLocation) LOAD(Uniform1i) LOAD(Uniform1f)
     LOAD(Uniform2f) LOAD(Uniform4f) LOAD(ActiveTexture) LOAD(GenVertexArrays) LOAD(BindVertexArray)
     LOAD(BindFramebuffer) LOAD(BindBuffer) LOAD(BlendFuncSeparate) LOAD(BlendEquationSeparate) LOAD(BindSampler)
+    LOAD(GenFramebuffers) LOAD(FramebufferTexture2D) LOAD(BlitFramebuffer) LOAD(CheckFramebufferStatus)
 #undef LOAD
     const bool procs = g.CreateShader && g.ShaderSource && g.CompileShader && g.GetShaderiv && g.GetShaderInfoLog &&
         g.DeleteShader && g.CreateProgram && g.AttachShader && g.LinkProgram && g.GetProgramiv && g.DeleteProgram &&
@@ -302,8 +310,9 @@ void Restore(const Gl& g, const SavedState& s) {
 
 struct DrawItem { std::shared_ptr<Image> image; model::Box box; float opacity; };
 
-// Uploads the pending pixels of `image` into its texture (bound on unit 0 afterwards).
-void Upload(Image& image, HGLRC context) {
+// Uploads the pending pixels of `image` into its texture (bound on the active unit afterwards).
+// Returns true when the texture content changed.
+bool Upload(Image& image, HGLRC context) {
     std::lock_guard<std::mutex> lock(image.pixelsMutex);
     const GLenum format = image.format == SW_IMAGE_RGBA8 ? GL_RGBA : kBgra;
     if (!image.texture || image.textureContext != context) {
@@ -321,16 +330,91 @@ void Upload(Image& image, HGLRC context) {
         glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, image.width, image.height, 0, format, GL_UNSIGNED_BYTE, image.pixels.data());
         image.dirty = {};
-        return;
+        image.flipped = 0; // belonged to the previous context, if any
+        image.flippedStale = true;
+        return true;
     }
     glBindTexture(GL_TEXTURE_2D, image.texture);
-    if (image.dirty.Empty()) return;
+    if (image.dirty.Empty()) return false;
     const auto& d = image.dirty;
     glPixelStorei(GL_UNPACK_ROW_LENGTH, image.width);
     glPixelStorei(GL_UNPACK_SKIP_PIXELS, d.x0);
     glPixelStorei(GL_UNPACK_SKIP_ROWS, d.y0);
     glTexSubImage2D(GL_TEXTURE_2D, 0, d.x0, d.y0, d.x1 - d.x0, d.y1 - d.y0, format, GL_UNSIGNED_BYTE, image.pixels.data());
     image.dirty = {};
+    image.flippedStale = true;
+    return true;
+}
+
+// Copies image.texture upside down into image.flipped (GPU blit). Texture binding of the
+// active unit, framebuffer bindings, scissor and sRGB state are restored.
+bool RefreshFlipped(Gl& g, Image& image, bool srgb) {
+    if (!g.GenFramebuffers || !g.FramebufferTexture2D || !g.BlitFramebuffer) return false;
+    constexpr GLenum kRead = 0x8CA8, kDraw = 0x8CA9, kReadBinding = 0x8CAA, kColor0 = 0x8CE0;
+    if (!g.blitFramebuffers[0]) g.GenFramebuffers(2, g.blitFramebuffers);
+    if (!g.blitFramebuffers[0] || !g.blitFramebuffers[1]) return false;
+    GLint bound = 0, readFb = 0, drawFb = 0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
+    if (image.flipped && image.flippedSrgb != srgb) { glDeleteTextures(1, &image.flipped); image.flipped = 0; }
+    if (!image.flipped) {
+        glGenTextures(1, &image.flipped);
+        glBindTexture(GL_TEXTURE_2D, image.flipped);
+        const GLint filter = image.flags & SW_IMAGE_FLAG_NEAREST ? GL_NEAREST : GL_LINEAR;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, kClampToEdge);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, kClampToEdge);
+        glTexParameteri(GL_TEXTURE_2D, kTextureMaxLevel, 0);
+        // Same bytes either way (blits copy raw values while FRAMEBUFFER_SRGB is off).
+        glTexImage2D(GL_TEXTURE_2D, 0, srgb ? 0x8C43 /*GL_SRGB8_ALPHA8*/ : GL_RGBA8, image.width, image.height, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        image.flippedSrgb = srgb;
+        image.flippedStale = true;
+    }
+    if (image.flippedStale) {
+        glGetIntegerv(kReadBinding, &readFb);
+        glGetIntegerv(kDrawFramebufferBinding, &drawFb);
+        const GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST), srgbWrite = glIsEnabled(kFramebufferSrgb);
+        GLboolean mask[4] = {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE};
+        glGetBooleanv(GL_COLOR_WRITEMASK, mask);
+        glDisable(GL_SCISSOR_TEST); glDisable(kFramebufferSrgb); // blits honour both
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        g.BindFramebuffer(kRead, g.blitFramebuffers[0]);
+        g.FramebufferTexture2D(kRead, kColor0, GL_TEXTURE_2D, image.texture, 0);
+        g.BindFramebuffer(kDraw, g.blitFramebuffers[1]);
+        g.FramebufferTexture2D(kDraw, kColor0, GL_TEXTURE_2D, image.flipped, 0);
+        const GLint w = GLint(image.width), h = GLint(image.height);
+        static std::atomic<bool> checked{false};
+        if (g.CheckFramebufferStatus && !checked.exchange(true)) {
+            const GLenum readStatus = g.CheckFramebufferStatus(kRead), drawStatus = g.CheckFramebufferStatus(kDraw);
+            LogInfo("Image: monitor flip framebuffers read 0x%X draw 0x%X (0x8CD5 = complete)", readStatus, drawStatus);
+        }
+        g.BlitFramebuffer(0, 0, w, h, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        g.BindFramebuffer(kRead, GLuint(readFb));
+        g.BindFramebuffer(kDraw, GLuint(drawFb));
+        if (scissor) glEnable(GL_SCISSOR_TEST);
+        if (srgbWrite) glEnable(kFramebufferSrgb);
+        glColorMask(mask[0], mask[1], mask[2], mask[3]);
+        image.flippedStale = false;
+        // Diagnostic: one pixel from the middle of the flipped copy, once content exists.
+        static std::atomic<int> samples{0};
+        if (samples < 3) {
+            uint8_t px[4] = {};
+            GLint packAlign = 4, packBuffer = 0;
+            glGetIntegerv(GL_PACK_ALIGNMENT, &packAlign);
+            glGetIntegerv(0x88ED /*GL_PIXEL_PACK_BUFFER_BINDING*/, &packBuffer);
+            g.BindBuffer(0x88EB, 0);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            g.BindFramebuffer(kRead, g.blitFramebuffers[1]);
+            glReadPixels(w / 2, h / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px);
+            g.BindFramebuffer(kRead, GLuint(readFb));
+            glPixelStorei(GL_PACK_ALIGNMENT, packAlign);
+            g.BindBuffer(0x88EB, GLuint(packBuffer));
+            if (px[3]) LogInfo("Image: monitor copy centre pixel #%d = %u,%u,%u,%u", ++samples, px[0], px[1], px[2], px[3]);
+        }
+    }
+    glBindTexture(GL_TEXTURE_2D, GLuint(bound));
+    return true;
 }
 
 void DrawOverlayCpp(HDC dc) {
@@ -356,7 +440,8 @@ void DrawOverlayCpp(HDC dc) {
             Image& image = **it;
             if (image.texture && image.textureContext != context) { ++it; continue; }
             if (image.texture) dead.push_back(image.texture);
-            image.texture = 0;
+            if (image.flipped) dead.push_back(image.flipped);
+            image.texture = image.flipped = 0;
             it = g_retired.erase(it);
         }
         g_retiredCount = g_retired.size();
@@ -807,6 +892,43 @@ void NoteImageSurfacePulse(SwUiSurface surface) {
     if (surface >= SW_SURFACE_MENU && surface <= SW_SURFACE_EDITOR) g_pulse[surface] = GetTickCount64();
 }
 void SetImageInputCursorCheck(bool enabled) { g_checkCursor = enabled; }
+bool ImageTextureForDraw(const SwModHost* owner, uint64_t id, bool srgb, unsigned* texture) {
+    if (!texture || g_disabled) return false;
+    HGLRC context = wglGetCurrentContext();
+    if (!context) return false;
+    std::shared_ptr<Image> image;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        image = Find(owner, SwHandle(id));
+    }
+    if (!image) return false;
+    Gl& g = CurrentGl(context);
+    if (!g.ready) return false;
+    // Upload binds the texture on the active unit and changes unpack state: put them back.
+    GLint bound = 0, unpackBuffer = 0, alignment = 0, rowLength = 0, skipPixels = 0, skipRows = 0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
+    glGetIntegerv(kPixelUnpackBufferBinding, &unpackBuffer);
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+    glGetIntegerv(GL_UNPACK_ROW_LENGTH, &rowLength);
+    glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &skipPixels);
+    glGetIntegerv(GL_UNPACK_SKIP_ROWS, &skipRows);
+    g.BindBuffer(kPixelUnpackBuffer, 0);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    Upload(*image, context);
+    // Native monitor UVs expect a render target (bottom row first): hand out a flipped copy.
+    *texture = RefreshFlipped(g, *image, srgb) ? image->flipped : 0;
+    static std::atomic<bool> logged{false};
+    if (!logged.exchange(true))
+        LogInfo("Image: first monitor source %llu (%ux%u) -> texture %u", static_cast<unsigned long long>(id),
+                image->width, image->height, *texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, rowLength);
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, skipPixels);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, skipRows);
+    g.BindBuffer(kPixelUnpackBuffer, GLuint(unpackBuffer));
+    glBindTexture(GL_TEXTURE_2D, GLuint(bound));
+    return *texture != 0;
+}
 bool DrawImageOverlay(void* hdc) { return DrawOverlaySeh(static_cast<HDC>(hdc)); }
 void ReleaseImageOwner(const SwModHost* owner) {
     // Waits for an input callback in flight: none of the owner's code runs after this returns.

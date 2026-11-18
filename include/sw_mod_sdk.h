@@ -133,6 +133,10 @@ typedef struct SwVideoApi {
     bool (*reset)(const SwModHost* owner, void* luaState);
     bool (*requestCapture)(const SwModHost* owner, void* luaState, bool enabled);
     bool (*getPixel)(const SwModHost* owner, void* luaState, int x, int y, SwVideoPixel* out);
+    // Appended: check structSize. Shows the owner's image (api->image handle) on this monitor
+    // instead of its video signal, for the current onDraw pass only (call it every onDraw).
+    // The image is stretched over the monitor; screen.* drawings stay on top. 0 cancels.
+    bool (*setSourceImage)(const SwModHost* owner, void* luaState, uint64_t image);
 } SwVideoApi;
 
 #include "sw_sdk_p0.h"

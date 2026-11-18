@@ -2332,9 +2332,19 @@ SwLuaStatus ExtrasPushValue(const SwModHost* owner, void* state, int index) {
     *(uintptr_t*)(L + 0x10) = top + 16;
     return SW_LUA_OK;
 }
+// The generation the callback frame was entered with: the id of the VM-created event.
+SwLuaStatus ExtrasVmId(const SwModHost* owner, void* state, uint64_t* out) {
+    if (!out) return SW_LUA_INVALID_ARGUMENT;
+    *out = 0;
+    auto status = ExtrasContext(owner, state);
+    if (status != SW_LUA_OK) return status;
+    *out = g_luaCallbackFrame->generation;
+    return *out ? SW_LUA_OK : SW_LUA_INVALID_CONTEXT;
+}
 const SwLuaExtrasApi g_luaExtras = {sizeof(SwLuaExtrasApi), &ExtrasPushString, &ExtrasPushNil,
     &ExtrasPushInteger, &ExtrasCreateTable, &ExtrasGetField, &ExtrasSetField, &ExtrasGetType,
-    &ExtrasPop, &ExtrasRaiseError, &ExtrasCopyString, &ExtrasGetGlobal, &ExtrasCall, &ExtrasPushValue};
+    &ExtrasPop, &ExtrasRaiseError, &ExtrasCopyString, &ExtrasGetGlobal, &ExtrasCall, &ExtrasPushValue,
+    &ExtrasVmId};
 
 struct QolCallData { int (*fn)(uintptr_t); int result; };
 void QolCallLeaf(uintptr_t L, void* data) {

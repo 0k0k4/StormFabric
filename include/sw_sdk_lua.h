@@ -82,6 +82,14 @@ typedef struct SwLuaExtrasApi {
     // function, not a deep copy. Lets a mod pass a value it received (an argument) to
     // `call`, e.g. next(t, k) or rawset(t, i, v). Works on both reviewed builds.
     SwLuaStatus (*pushValue)(const SwModHost* owner, void* state, int index);
+
+    // ---- Appended: check structSize before reading -------------------------------------
+    // Identity of the VM this callback runs in: the same value as the `handle` of the
+    // SW_EVENT_LUA_CREATED / SW_EVENT_LUA_DESTROYED (microcontroller) and
+    // SW_EVENT_ADDON_LUA_CREATED / _DESTROYED (addon) events. Lets a mod tie objects to the
+    // script that created them and drop them when its VM is destroyed (vehicle despawned,
+    // script reloaded). Never 0 on success; never reused within a session.
+    SwLuaStatus (*vmId)(const SwModHost* owner, void* state, uint64_t* out);
 } SwLuaExtrasApi;
 #ifdef __cplusplus
 }

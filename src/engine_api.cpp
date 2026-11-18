@@ -337,6 +337,7 @@ void InitializeEngineApi(const sw::Api& api) {
     g_engine.world = nullptr;
     g_engine.native = native::NativePrimitives();
     g_engine.image = ImagePrimitives();
+    SetVideoImageResolver(&ImageTextureForDraw); // monitors may show loader images
     g_engine.services = ServicePrimitives();
     const bool imageAvailable = ImageOverlayAvailable();
     SetRuntimeCapabilities(SW_CAP_UI_EVENTS | SW_CAP_MAIN_THREAD_TASKS |

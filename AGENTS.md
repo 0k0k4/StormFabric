@@ -221,6 +221,11 @@ Tick and event rules:
   on top with `extras->pushValue(host, L, index)` (appended member: check `structSize`).
   Example: `getGlobal("next")`, `pushValue(1)`, `pushNil` → `call(2, 2)` iterates a table
   passed by the script. There is no `lua_remove`: values pushed stay until you `pop` them.
+- **Objects tied to a script**: `extras->vmId(host, L, &id)` (appended member: check
+  `structSize`) gives the id of the VM the callback runs in, equal to the `handle` of
+  `SW_EVENT_LUA_DESTROYED` / `SW_EVENT_ADDON_LUA_DESTROYED` (`runtime->subscribe`). Store it
+  with whatever the script creates and free those objects when that VM is destroyed
+  (vehicle despawned, script reloaded).
 
 ## 7. Library for addon scripts
 
@@ -323,10 +328,10 @@ SW_MOD_EXPORT void SwModUnload(void) { g_host = nullptr; }
   append only. A provider that keeps per-consumer objects or callbacks must register
   `setOwnerReleaseCallback` and drop them there. See `examples/service_demo` and
   `docs/services.md`.
-- **Web pages (Chromium)**: depend on the `sf_browser` mod and use its `browser` service
-  (`examples/sf_browser/sf_browser_api.h`): `create` a page with a URL, size and placement,
-  exchange strings with it (`window.sfBrowser.send` / `postMessage`). Chromium runs in its
-  own process. See `examples/sf_browser/README.md` and `examples/sf_browser/demo`.
+- **Vehicle monitors**: `video->setSourceImage(host, L, image)` (appended member: check
+  `structSize`), called in a monitor's `onDraw`, shows one of your `api->image` images on
+  that monitor instead of its video signal for this frame; `screen.*` drawings stay on top.
+  The monitor's touch output reaches the microcontroller as usual. See `docs/video_fx.md`.
 - **Tasks** (`runtime->runOnGameThread`, `runtime->schedule`): run on the UI thread, can be
   requested from the simulation thread.
 - **Low level** (`host->api->native`: inline hooks, memory): last resort, only with

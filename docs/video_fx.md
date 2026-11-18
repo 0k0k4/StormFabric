@@ -50,6 +50,18 @@ La translation suit l'échelle ; les zones hors vidéo sont noires. Les dessins 
 le tactile et ses coordonnées restent inchangés. L'effet n'altère pas le signal logique
 transmis entre microcontrôleurs ; il agit au moment de l'affichage du moniteur.
 
+### Image du loader comme source (`SwVideoApi.setSourceImage`)
+
+Membre ajouté en fin de `SwVideoApi` (vérifier `structSize`). Appelé dans `onDraw` avec un
+handle `api->image` **du même mod**, il remplace pour ce passage la texture vidéo du moniteur
+par celle de l'image : le relais `glDrawElements` lie sur l'unité échantillonnée par
+`texture_video` une copie **retournée** de l'image (blit GPU : une image du loader stocke sa
+ligne du haut en premier, une cible de rendu l'inverse), force `alpha_video` à 1 pour
+s'afficher même sans caméra, dessine avec le **programme natif** du jeu, puis restaure la
+texture et l'uniform. Le programme FX n'est utilisé que si des effets sont aussi demandés. Les pixels en attente de l'image sont envoyés au
+GPU à ce moment, même si l'image est masquée de l'écran. Les effets FX se combinent. Utilisé
+par `sf_browser` (`browser.monitor(id)`) pour afficher une page web sur un moniteur.
+
 Un script connecté à deux moniteurs dispose de deux passages/captures indépendants.
 Dans une chaîne de scripts sur un moniteur, les setters modifient **l'état partagé du
 passage** : le dernier setter d'une propriété gagne, sans pile de filtres par script.
